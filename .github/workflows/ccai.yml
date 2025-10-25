@@ -250,8 +250,9 @@ jobs:
           # Logging
           LOG_LEVEL=debug
 
-          # Anthropic API Key
+          # Anthropic API Configuration
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL=${{ secrets.ANTHROPIC_BASE_URL }}
           EOF
 
           echo "✅ Environment file created"
@@ -272,6 +273,7 @@ jobs:
         id: run-claude
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
         run: |
           set +e  # 允许命令失败,以便捕获退出码
 
