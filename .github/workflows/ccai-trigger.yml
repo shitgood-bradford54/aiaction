@@ -185,4 +185,3 @@ jobs:
       comment_id: ${{ needs.validate-and-extract.outputs.comment_id }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
