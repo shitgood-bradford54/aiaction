@@ -1,0 +1,23 @@
+Starting Claude Code execution...
+Task: implement complex authentication system
+
+Analyzing requirements...
+
+❓ I need more information to proceed with this implementation:
+
+1. Which authentication method do you prefer?
+   - JWT (JSON Web Tokens)
+   - OAuth 2.0
+   - Session-based authentication
+   - Other
+
+2. Should we support multi-factor authentication (MFA)?
+
+3. Do you need social login integration (Google, GitHub, etc.)?
+
+4. What user roles and permissions structure do you envision?
+
+Could you provide more details about these authentication requirements?
+I'm waiting for your clarification before proceeding with the implementation.
+
+Exit code: 0

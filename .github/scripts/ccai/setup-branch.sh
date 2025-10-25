@@ -27,7 +27,8 @@ git config user.email "github-actions[bot]@users.noreply.github.com"
 git fetch origin
 
 # 检查分支是否在远程存在
-if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+# 使用更精确的匹配：检查完整的 refs/heads/$BRANCH_NAME
+if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "refs/heads/$BRANCH_NAME"; then
   echo "🔄 Branch $BRANCH_NAME exists remotely, checking out and pulling..."
   git checkout "$BRANCH_NAME"
   git pull origin "$BRANCH_NAME"

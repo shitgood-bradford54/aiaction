@@ -1,0 +1,203 @@
+# ==========================================
+# 集成测试: 触发器工作流
+# 测试 ccai-trigger.yml 的核心功能
+# 手动触发: gh workflow run test-trigger-workflow.yml
+# ==========================================
+
+name: "Test: Trigger Workflow"
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_scenario:
+        description: '测试场景'
+        required: true
+        type: choice
+        options:
+          - 'permission_granted'
+          - 'permission_denied'
+          - 'issue_comment'
+          - 'pr_comment'
+          - 'empty_prompt'
+      comment_body:
+        description: '评论内容'
+        required: false
+        default: '@ccai implement health check endpoint'
+      user_permission:
+        description: '用户权限'
+        required: false
+        type: choice
+        options:
+          - 'admin'
+          - 'write'
+          - 'read'
+        default: 'write'
+      pr_body:
+        description: 'PR 描述 (仅 PR 场景)'
+        required: false
+        default: 'Closes #123'
+
+jobs:
+  test-permission-validation:
+    name: "测试: 权限验证"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'permission_granted' || inputs.test_scenario == 'permission_denied'
+
+    steps:
+      - name: 模拟权限检查
+        id: check_permission
+        run: |
+          echo "测试场景: ${{ inputs.test_scenario }}"
+          echo "用户权限: ${{ inputs.user_permission }}"
+
+          if [ "${{ inputs.user_permission }}" = "read" ]; then
+            echo "❌ 权限拒绝: 用户没有 write/admin 权限"
+            echo "permission_granted=false" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "✅ 权限通过: 用户有足够权限"
+            echo "permission_granted=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 验证权限检查结果
+        run: |
+          if [ "${{ inputs.test_scenario }}" = "permission_granted" ]; then
+            if [ "${{ steps.check_permission.outputs.permission_granted }}" = "true" ]; then
+              echo "✅ 测试通过: 权限验证正确 (允许)"
+            else
+              echo "❌ 测试失败: 应该允许但被拒绝"
+              exit 1
+            fi
+          elif [ "${{ inputs.test_scenario }}" = "permission_denied" ]; then
+            if [ "${{ steps.check_permission.outputs.permission_granted }}" = "false" ]; then
+              echo "✅ 测试通过: 权限验证正确 (拒绝)"
+            else
+              echo "❌ 测试失败: 应该拒绝但被允许"
+              exit 1
+            fi
+          fi
+
+  test-issue-extraction:
+    name: "测试: Issue ID 提取"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'issue_comment' || inputs.test_scenario == 'pr_comment'
+
+    steps:
+      - name: 提取 Issue ID (Issue 评论场景)
+        if: inputs.test_scenario == 'issue_comment'
+        id: extract_issue
+        run: |
+          # 模拟从 Issue 评论直接获取
+          issue_number="456"
+          echo "从 Issue 评论获取: #${issue_number}"
+          echo "issue_number=${issue_number}" >> $GITHUB_OUTPUT
+
+      - name: 提取 Issue ID (PR 评论场景)
+        if: inputs.test_scenario == 'pr_comment'
+        id: extract_pr_issue
+        run: |
+          # 模拟从 PR 描述提取
+          pr_body="${{ inputs.pr_body }}"
+          echo "PR 描述: $pr_body"
+
+          # 提取 Closes #123 格式
+          if echo "$pr_body" | grep -iE '(closes|fixes|resolves)\s+#[0-9]+' > /dev/null; then
+            issue_number=$(echo "$pr_body" | grep -oiE '#[0-9]+' | head -1 | tr -d '#')
+            echo "✅ 从 PR 描述提取到 Issue: #${issue_number}"
+            echo "issue_number=${issue_number}" >> $GITHUB_OUTPUT
+          else
+            echo "❌ PR 描述中未找到 Issue 关联"
+            exit 1
+          fi
+
+      - name: 验证提取结果
+        run: |
+          if [ "${{ inputs.test_scenario }}" = "issue_comment" ]; then
+            issue_num="${{ steps.extract_issue.outputs.issue_number }}"
+          else
+            issue_num="${{ steps.extract_pr_issue.outputs.issue_number }}"
+          fi
+
+          if [ -n "$issue_num" ]; then
+            echo "✅ 测试通过: Issue ID 提取成功 (#${issue_num})"
+          else
+            echo "❌ 测试失败: Issue ID 提取失败"
+            exit 1
+          fi
+
+  test-prompt-extraction:
+    name: "测试: 提示词提取"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'empty_prompt' || inputs.test_scenario == 'issue_comment'
+
+    steps:
+      - name: 提取提示词
+        id: extract_prompt
+        run: |
+          comment="${{ inputs.comment_body }}"
+          echo "原始评论: $comment"
+
+          # 去除 @ccai 前缀
+          prompt=$(echo "$comment" | sed 's/^@ccai\s*//')
+          echo "提取的提示词: $prompt"
+          echo "prompt=$prompt" >> $GITHUB_OUTPUT
+
+          if [ -z "$prompt" ] || [ "$prompt" = "@ccai" ]; then
+            echo "empty=true" >> $GITHUB_OUTPUT
+          else
+            echo "empty=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 验证提取结果
+        run: |
+          is_empty="${{ steps.extract_prompt.outputs.empty }}"
+          prompt="${{ steps.extract_prompt.outputs.prompt }}"
+
+          if [ "${{ inputs.test_scenario }}" = "empty_prompt" ]; then
+            if [ "$is_empty" = "true" ]; then
+              echo "✅ 测试通过: 正确检测到空提示词"
+            else
+              echo "❌ 测试失败: 应该检测到空提示词"
+              exit 1
+            fi
+          else
+            if [ "$is_empty" = "false" ] && [ -n "$prompt" ]; then
+              echo "✅ 测试通过: 提示词提取成功 ($prompt)"
+            else
+              echo "❌ 测试失败: 提示词提取失败"
+              exit 1
+            fi
+          fi
+
+  test-summary:
+    name: "测试总结"
+    runs-on: ubuntu-latest
+    needs: [test-permission-validation, test-issue-extraction, test-prompt-extraction]
+    if: always()
+
+    steps:
+      - name: 汇总测试结果
+        run: |
+          echo "=========================================="
+          echo "集成测试总结: 触发器工作流"
+          echo "=========================================="
+          echo "测试场景: ${{ inputs.test_scenario }}"
+          echo ""
+
+          # 检查各个测试任务的结果
+          permission_result="${{ needs.test-permission-validation.result }}"
+          issue_result="${{ needs.test-issue-extraction.result }}"
+          prompt_result="${{ needs.test-prompt-extraction.result }}"
+
+          echo "权限验证: ${permission_result:-skipped}"
+          echo "Issue 提取: ${issue_result:-skipped}"
+          echo "提示词提取: ${prompt_result:-skipped}"
+          echo ""
+
+          # 判断总体结果
+          if [ "$permission_result" = "failure" ] || [ "$issue_result" = "failure" ] || [ "$prompt_result" = "failure" ]; then
+            echo "❌ 部分测试失败"
+            exit 1
+          else
+            echo "✅ 所有测试通过"
+          fi
