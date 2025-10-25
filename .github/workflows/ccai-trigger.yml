@@ -208,3 +208,4 @@ jobs:
       comment_id: ${{ needs.validate-and-extract.outputs.comment_id }}
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}

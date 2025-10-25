@@ -248,6 +248,91 @@ brew services start redis
 4. **日志记录** - 添加适当的日志记录
 5. **测试** - 为关键功能编写单元测试和 E2E 测试
 
+## GitHub Actions - Claude Code AI 集成
+
+本项目集成了 GitHub Actions 自动化工作流,支持通过 Issue 评论触发 Claude Code AI 自动生成代码。
+
+### 快速使用
+
+1. **在 Issue 评论中触发 AI**:
+   ```
+   @ccai 请添加用户登录功能
+   ```
+
+2. **AI 将自动**:
+   - 创建分支 `issue_<编号>`
+   - 执行代码生成
+   - 推送变更
+   - 创建 Pull Request
+
+### 初始配置 (一次性)
+
+#### 1. 设置 Anthropic API Key
+
+在仓库 Settings → Secrets and variables → Actions 中添加:
+- **Name**: `ANTHROPIC_API_KEY`
+- **Value**: 你的 Anthropic API Key ([获取地址](https://console.anthropic.com/))
+
+#### 2. 设置 Personal Access Token (必需)
+
+由于 GitHub Actions 的安全限制,默认 `GITHUB_TOKEN` **无法创建 Pull Request**。需要创建一个 PAT:
+
+**方法 1: 自动创建 (推荐)**
+```bash
+# 使用 GitHub CLI 创建 token
+gh auth refresh -s repo,write:discussion
+```
+
+**方法 2: 手动创建**
+
+1. 访问 [GitHub Settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
+2. 点击 "Generate new token"
+3. 配置:
+   - **Token name**: `CCAI PR Creator`
+   - **Expiration**: 90 days 或更长
+   - **Repository access**: 选择当前仓库
+   - **Permissions**:
+     - `Contents`: Read and write
+     - `Pull requests`: Read and write
+     - `Issues`: Read and write
+4. 复制生成的 token
+
+**添加到仓库 Secrets:**
+- 进入仓库 Settings → Secrets and variables → Actions
+- 点击 "New repository secret"
+- **Name**: `PAT_TOKEN`
+- **Secret**: 粘贴刚才复制的 token
+
+📖 **详细指南**: 查看 [`.github/docs/setup-pat-token.md`](.github/docs/setup-pat-token.md)
+
+### 使用示例
+
+```markdown
+# 在 Issue 评论中:
+
+@ccai 添加用户注册功能,包含邮箱验证
+
+@ccai 修复登录接口的性能问题
+
+@ccai 重构用户服务,应用 SOLID 原则
+```
+
+### 工作流特性
+
+- ✅ **并发控制**: 同一 Issue 的多个请求自动排队
+- ✅ **环境隔离**: 自动配置测试数据库和 Redis
+- ✅ **实时反馈**: 通过评论更新任务状态
+- ✅ **智能触发**: 大小写不敏感的 `@ccai` 触发词
+- ✅ **权限控制**: 只有 write/admin 权限用户可触发
+- ✅ **PR 自动化**: 自动创建或更新 Pull Request
+
+### 注意事项
+
+1. **PAT Token 必需**: 如果未配置 `PAT_TOKEN`,工作流将在创建 PR 时失败
+2. **Token 过期**: PAT 有过期时间,需要定期更新
+3. **权限限制**: 只有 write 或 admin 权限的协作者可以触发工作流
+4. **费用**: 使用 Anthropic API 会产生费用,请合理使用
+
 ## 扩展建议
 
 - 添加身份认证(JWT、Passport)
