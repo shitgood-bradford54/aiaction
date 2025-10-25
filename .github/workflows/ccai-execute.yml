@@ -94,12 +94,10 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: commentId,
-                body: `🔄 **您的请求已加入队列**
-
-前面有 ${sameIssueRuns.length} 个任务正在执行，请稍候...
-
-📝 **任务**: ${prompt}
-🔗 **查看队列**: [Actions 运行日志](${runUrl})`
+                body: '🔄 **您的请求已加入队列**\n\n' +
+                      '前面有 ' + sameIssueRuns.length + ' 个任务正在执行，请稍候...\n\n' +
+                      '📝 **任务**: ' + prompt + '\n' +
+                      '🔗 **查看队列**: [Actions 运行日志](' + runUrl + ')'
               });
             }
 
@@ -176,7 +174,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: `🤖 Claude Code 需要更多信息:\n\n\`\`\`\n${interactionMessage}\n\`\`\`\n\n请在此评论下回复,然后重新触发工作流。`
+              body: '🤖 Claude Code 需要更多信息:\n\n```\n' + interactionMessage + '\n```\n\n请在此评论下回复,然后重新触发工作流。'
             });
 
       # ==========================================
@@ -204,9 +202,8 @@ jobs:
           ISSUE_NUMBER="${{ inputs.issue_number }}"
 
           git add .
-          git commit -m "chore: Claude Code automated changes for issue #${ISSUE_NUMBER}
-
-Co-Authored-By: Claude <noreply@anthropic.com>" || true
+          git commit -m "chore: Claude Code automated changes for issue #${ISSUE_NUMBER}" \
+                     -m "Co-Authored-By: Claude <noreply@anthropic.com>" || true
           git push origin "$BRANCH_NAME"
 
           echo "✅ Changes pushed to branch: $BRANCH_NAME"
@@ -243,28 +240,20 @@ Co-Authored-By: Claude <noreply@anthropic.com>" || true
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
-                body: `Closes #${issueNumber}
-
-## 🤖 由 Claude Code 自动生成
-
-**最新请求**: ${prompt}
-**更新时间**: ${timestamp}
-
-### 📋 变更说明
-
-Claude Code 已根据 Issue #${issueNumber} 的需求自动生成代码变更。
-此 PR 已被多次更新，请查看最新的变更内容。
-
-### ✅ 审查清单
-
-- [ ] 代码功能正确
-- [ ] 测试通过（如有）
-- [ ] 代码风格符合规范
-- [ ] 文档已更新（如需要）
-
----
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+                body: 'Closes #' + issueNumber + '\n\n' +
+                      '## 🤖 由 Claude Code 自动生成\n\n' +
+                      '**最新请求**: ' + prompt + '\n' +
+                      '**更新时间**: ' + timestamp + '\n\n' +
+                      '### 📋 变更说明\n\n' +
+                      'Claude Code 已根据 Issue #' + issueNumber + ' 的需求自动生成代码变更。\n' +
+                      '此 PR 已被多次更新，请查看最新的变更内容。\n\n' +
+                      '### ✅ 审查清单\n\n' +
+                      '- [ ] 代码功能正确\n' +
+                      '- [ ] 测试通过（如有）\n' +
+                      '- [ ] 代码风格符合规范\n' +
+                      '- [ ] 文档已更新（如需要）\n\n' +
+                      '---\n\n' +
+                      '🤖 Generated with [Claude Code](https://claude.com/claude-code)'
               });
 
               prUrl = pr.html_url;
@@ -274,30 +263,22 @@ Claude Code 已根据 Issue #${issueNumber} 的需求自动生成代码变更。
               const { data: pr } = await github.rest.pulls.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `feat: AI-generated solution for #${issueNumber}`,
+                title: 'feat: AI-generated solution for #' + issueNumber,
                 head: branchName,
                 base: 'main',
-                body: `Closes #${issueNumber}
-
-## 🤖 由 Claude Code 自动生成
-
-**原始请求**: ${prompt}
-**创建时间**: ${timestamp}
-
-### 📋 变更说明
-
-Claude Code 已根据 Issue #${issueNumber} 的需求自动生成以下代码变更。
-
-### ✅ 审查清单
-
-- [ ] 代码功能正确
-- [ ] 测试通过（如有）
-- [ ] 代码风格符合规范
-- [ ] 文档已更新（如需要）
-
----
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+                body: 'Closes #' + issueNumber + '\n\n' +
+                      '## 🤖 由 Claude Code 自动生成\n\n' +
+                      '**原始请求**: ' + prompt + '\n' +
+                      '**创建时间**: ' + timestamp + '\n\n' +
+                      '### 📋 变更说明\n\n' +
+                      'Claude Code 已根据 Issue #' + issueNumber + ' 的需求自动生成以下代码变更。\n\n' +
+                      '### ✅ 审查清单\n\n' +
+                      '- [ ] 代码功能正确\n' +
+                      '- [ ] 测试通过（如有）\n' +
+                      '- [ ] 代码风格符合规范\n' +
+                      '- [ ] 文档已更新（如需要）\n\n' +
+                      '---\n\n' +
+                      '🤖 Generated with [Claude Code](https://claude.com/claude-code)'
               });
 
               prUrl = pr.html_url;
@@ -324,13 +305,10 @@ Claude Code 已根据 Issue #${issueNumber} 的需求自动生成以下代码变
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: `✅ **任务完成!**
-
-📋 **原始请求**: ${prompt}
-
-🔗 **Pull Request**: ${prUrl}
-
-请查看 PR 并进行代码审查。`
+              body: '✅ **任务完成!**\n\n' +
+                    '📋 **原始请求**: ' + prompt + '\n\n' +
+                    '🔗 **Pull Request**: ' + prUrl + '\n\n' +
+                    '请查看 PR 并进行代码审查。'
             });
 
       # ==========================================
@@ -350,13 +328,10 @@ Claude Code 已根据 Issue #${issueNumber} 的需求自动生成以下代码变
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: `❌ **任务失败**
-
-📋 **原始请求**: ${prompt}
-
-🔍 **查看详细日志**: [GitHub Actions 运行记录](${runUrl})
-
-请检查错误信息并重试。`
+              body: '❌ **任务失败**\n\n' +
+                    '📋 **原始请求**: ' + prompt + '\n\n' +
+                    '🔍 **查看详细日志**: [GitHub Actions 运行记录](' + runUrl + ')\n\n' +
+                    '请检查错误信息并重试。'
             });
 
       # ==========================================
@@ -375,9 +350,7 @@ Claude Code 已根据 Issue #${issueNumber} 的需求自动生成以下代码变
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: `⚠️ **任务完成,但未检测到代码变更**
-
-📋 **原始请求**: ${prompt}
-
-Claude Code 执行完成,但未生成任何代码变更。请检查任务是否需要代码修改。`
+              body: '⚠️ **任务完成,但未检测到代码变更**\n\n' +
+                    '📋 **原始请求**: ' + prompt + '\n\n' +
+                    'Claude Code 执行完成,但未生成任何代码变更。请检查任务是否需要代码修改。'
             });
