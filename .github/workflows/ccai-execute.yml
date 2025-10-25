@@ -1,0 +1,383 @@
+name: CCAI Execute - Reusable Workflow
+
+# 可复用工作流: 被 ccai-trigger.yml 调用
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        description: 'Issue number'
+        required: true
+        type: string
+      prompt:
+        description: 'User prompt for Claude Code'
+        required: true
+        type: string
+      comment_id:
+        description: 'Initial comment ID for updates'
+        required: true
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API Key for Claude Code'
+        required: true
+      GITHUB_TOKEN:
+        description: 'GitHub Token for API calls'
+        required: true
+
+jobs:
+  execute:
+    name: Execute Claude Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    # 并发控制: 按 issue ID 排队
+    concurrency:
+      group: ccai-issue-${{ inputs.issue_number }}
+      cancel-in-progress: false
+
+    # Service Containers: PostgreSQL + Redis
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: nestjs_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # ==========================================
+      # 步骤 0: 检测排队状态并通知用户
+      # ==========================================
+      - name: Check if queued and notify
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = ${{ inputs.comment_id }};
+            const prompt = `${{ inputs.prompt }}`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // 检查是否有同一 issue 的其他运行中的任务
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ccai-execute.yml',
+              status: 'in_progress'
+            });
+
+            // 过滤出同一 issue 的其他运行
+            const sameIssueRuns = runs.workflow_runs.filter(run =>
+              run.id !== context.runId &&
+              run.name.includes('issue_${{ inputs.issue_number }}')
+            );
+
+            if (sameIssueRuns.length > 0) {
+              // 有其他任务正在执行，更新评论为"排队中"
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                body: `🔄 **您的请求已加入队列**
+
+前面有 ${sameIssueRuns.length} 个任务正在执行，请稍候...
+
+📝 **任务**: ${prompt}
+🔗 **查看队列**: [Actions 运行日志](${runUrl})`
+              });
+            }
+
+      # ==========================================
+      # 步骤 1: 检出代码
+      # ==========================================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==========================================
+      # 步骤 2: 分支管理
+      # ==========================================
+      - name: Setup branch
+        id: setup-branch
+        run: |
+          bash .github/scripts/ccai/setup-branch.sh "${{ inputs.issue_number }}"
+
+      # ==========================================
+      # 步骤 3: 设置 Node.js
+      # ==========================================
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ==========================================
+      # 步骤 4: 安装依赖
+      # ==========================================
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      # ==========================================
+      # 步骤 5: 创建环境配置文件
+      # ==========================================
+      - name: Create environment file
+        run: |
+          bash .github/scripts/ccai/setup-env.sh "${{ secrets.ANTHROPIC_API_KEY }}"
+
+      # ==========================================
+      # 步骤 6: 安装 Claude Code CLI
+      # ==========================================
+      - name: Install Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      # ==========================================
+      # 步骤 7: 执行 Claude Code 任务
+      # ==========================================
+      - name: Run Claude Code
+        id: run-claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          bash .github/scripts/ccai/run-claude.sh "${{ inputs.prompt }}"
+
+      # ==========================================
+      # 步骤 8: 处理 Claude 交互请求
+      # ==========================================
+      - name: Handle Claude interaction
+        if: steps.run-claude.outputs.interaction_detected == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = ${{ inputs.comment_id }};
+            const interactionMessage = `${{ steps.run-claude.outputs.interaction_message }}`;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: `🤖 Claude Code 需要更多信息:\n\n\`\`\`\n${interactionMessage}\n\`\`\`\n\n请在此评论下回复,然后重新触发工作流。`
+            });
+
+      # ==========================================
+      # 步骤 9: 检查 Git 变更
+      # ==========================================
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Detected code changes"
+            git status --short
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No code changes detected"
+          fi
+
+      # ==========================================
+      # 步骤 10: 推送变更
+      # ==========================================
+      - name: Push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          BRANCH_NAME="issue_${{ inputs.issue_number }}"
+          ISSUE_NUMBER="${{ inputs.issue_number }}"
+
+          git add .
+          git commit -m "chore: Claude Code automated changes for issue #${ISSUE_NUMBER}
+
+Co-Authored-By: Claude <noreply@anthropic.com>" || true
+          git push origin "$BRANCH_NAME"
+
+          echo "✅ Changes pushed to branch: $BRANCH_NAME"
+
+      # ==========================================
+      # 步骤 11: 创建 Pull Request
+      # ==========================================
+      - name: Create Pull Request
+        if: steps.check-changes.outputs.has_changes == 'true' && steps.run-claude.outputs.exit_code == '0'
+        id: create-pr
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branchName = `issue_${{ inputs.issue_number }}`;
+            const issueNumber = ${{ inputs.issue_number }};
+            const prompt = `${{ inputs.prompt }}`;
+
+            // 检查是否已存在 PR
+            const { data: existingPRs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branchName}`,
+              state: 'open'
+            });
+
+            let prUrl;
+            const timestamp = new Date().toISOString();
+
+            if (existingPRs.length > 0) {
+              // PR 已存在，更新 PR 描述
+              const pr = existingPRs[0];
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: `Closes #${issueNumber}
+
+## 🤖 由 Claude Code 自动生成
+
+**最新请求**: ${prompt}
+**更新时间**: ${timestamp}
+
+### 📋 变更说明
+
+Claude Code 已根据 Issue #${issueNumber} 的需求自动生成代码变更。
+此 PR 已被多次更新，请查看最新的变更内容。
+
+### ✅ 审查清单
+
+- [ ] 代码功能正确
+- [ ] 测试通过（如有）
+- [ ] 代码风格符合规范
+- [ ] 文档已更新（如需要）
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+              });
+
+              prUrl = pr.html_url;
+              console.log(`✅ PR already exists and updated: ${prUrl}`);
+            } else {
+              // 创建新 PR
+              const { data: pr } = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `feat: AI-generated solution for #${issueNumber}`,
+                head: branchName,
+                base: 'main',
+                body: `Closes #${issueNumber}
+
+## 🤖 由 Claude Code 自动生成
+
+**原始请求**: ${prompt}
+**创建时间**: ${timestamp}
+
+### 📋 变更说明
+
+Claude Code 已根据 Issue #${issueNumber} 的需求自动生成以下代码变更。
+
+### ✅ 审查清单
+
+- [ ] 代码功能正确
+- [ ] 测试通过（如有）
+- [ ] 代码风格符合规范
+- [ ] 文档已更新（如需要）
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+              });
+
+              prUrl = pr.html_url;
+              console.log(`✅ Created new PR: ${prUrl}`);
+            }
+
+            core.setOutput('pr_url', prUrl);
+            return prUrl;
+
+      # ==========================================
+      # 步骤 12: 更新成功评论
+      # ==========================================
+      - name: Update comment on success
+        if: success() && steps.create-pr.outputs.pr_url
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = ${{ inputs.comment_id }};
+            const prUrl = '${{ steps.create-pr.outputs.pr_url }}';
+            const prompt = `${{ inputs.prompt }}`;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: `✅ **任务完成!**
+
+📋 **原始请求**: ${prompt}
+
+🔗 **Pull Request**: ${prUrl}
+
+请查看 PR 并进行代码审查。`
+            });
+
+      # ==========================================
+      # 步骤 13: 更新失败评论
+      # ==========================================
+      - name: Update comment on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = ${{ inputs.comment_id }};
+            const prompt = `${{ inputs.prompt }}`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: `❌ **任务失败**
+
+📋 **原始请求**: ${prompt}
+
+🔍 **查看详细日志**: [GitHub Actions 运行记录](${runUrl})
+
+请检查错误信息并重试。`
+            });
+
+      # ==========================================
+      # 步骤 14: 更新无变更评论
+      # ==========================================
+      - name: Update comment on no changes
+        if: success() && steps.check-changes.outputs.has_changes == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = ${{ inputs.comment_id }};
+            const prompt = `${{ inputs.prompt }}`;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: `⚠️ **任务完成,但未检测到代码变更**
+
+📋 **原始请求**: ${prompt}
+
+Claude Code 执行完成,但未生成任何代码变更。请检查任务是否需要代码修改。`
+            });

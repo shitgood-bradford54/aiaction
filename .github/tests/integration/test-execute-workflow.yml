@@ -1,0 +1,297 @@
+# ==========================================
+# 集成测试: 执行工作流
+# 测试 ccai-execute.yml 的核心功能
+# 手动触发: gh workflow run test-execute-workflow.yml
+# ==========================================
+
+name: "Test: Execute Workflow"
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_scenario:
+        description: '测试场景'
+        required: true
+        type: choice
+        options:
+          - 'branch_creation'
+          - 'branch_checkout'
+          - 'env_setup'
+          - 'change_detection'
+          - 'interaction_detection'
+      issue_number:
+        description: 'Issue 编号'
+        required: false
+        default: '999'
+      mock_changes:
+        description: '模拟代码变更'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  test-branch-management:
+    name: "测试: 分支管理"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'branch_creation' || inputs.test_scenario == 'branch_checkout'
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 测试分支脚本
+        id: test_branch
+        run: |
+          echo "测试场景: ${{ inputs.test_scenario }}"
+          issue_number="${{ inputs.issue_number }}"
+
+          # 创建临时环境
+          export GITHUB_OUTPUT=$(mktemp)
+
+          # 测试分支管理脚本（使用测试中的 mock）
+          cd .github/tests/unit
+
+          if [ "${{ inputs.test_scenario }}" = "branch_creation" ]; then
+            echo "测试: 创建新分支"
+            export MOCK_REMOTE_BRANCH_EXISTS=false
+            bash ../../../.github/scripts/ccai/setup-branch.sh "$issue_number"
+          else
+            echo "测试: 切换已存在分支"
+            export MOCK_REMOTE_BRANCH_EXISTS=true
+            bash ../../../.github/scripts/ccai/setup-branch.sh "$issue_number"
+          fi
+
+          # 读取输出
+          if [ -f "$GITHUB_OUTPUT" ]; then
+            cat "$GITHUB_OUTPUT"
+            branch_name=$(grep "branch_name=" "$GITHUB_OUTPUT" | cut -d= -f2)
+            echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 验证分支管理结果
+        run: |
+          if [ -n "${{ steps.test_branch.outputs.branch_name }}" ]; then
+            echo "✅ 测试通过: 分支管理成功 (${{ steps.test_branch.outputs.branch_name }})"
+          else
+            echo "❌ 测试失败: 分支管理失败"
+            exit 1
+          fi
+
+  test-env-setup:
+    name: "测试: 环境配置"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'env_setup'
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 测试环境配置脚本
+        run: |
+          echo "测试: 环境文件生成"
+
+          # 创建临时目录
+          test_dir=$(mktemp -d)
+          cd "$test_dir"
+
+          # 运行脚本
+          bash $GITHUB_WORKSPACE/.github/scripts/ccai/setup-env.sh "test-api-key-123"
+
+          # 验证文件创建
+          if [ -f ".env.development.local" ]; then
+            echo "✅ 环境文件创建成功"
+            echo "文件内容:"
+            cat .env.development.local
+
+            # 验证必需变量
+            if grep -q "ANTHROPIC_API_KEY=test-api-key-123" .env.development.local; then
+              echo "✅ API Key 注入正确"
+            else
+              echo "❌ API Key 注入失败"
+              exit 1
+            fi
+
+            if grep -q "DATABASE_URL=postgresql://" .env.development.local; then
+              echo "✅ DATABASE_URL 配置正确"
+            else
+              echo "❌ DATABASE_URL 配置失败"
+              exit 1
+            fi
+          else
+            echo "❌ 环境文件未创建"
+            exit 1
+          fi
+
+  test-change-detection:
+    name: "测试: 代码变更检测"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'change_detection'
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 模拟代码变更
+        if: inputs.mock_changes
+        run: |
+          echo "模拟代码变更..."
+          echo "// Test change" >> test-file.txt
+          git add test-file.txt
+
+      - name: 检测代码变更
+        id: detect_changes
+        run: |
+          if git status --porcelain | grep -q .; then
+            echo "✅ 检测到代码变更"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "变更内容:"
+            git status --porcelain
+          else
+            echo "ℹ️ 未检测到代码变更"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 验证检测结果
+        run: |
+          expected="${{ inputs.mock_changes }}"
+          actual="${{ steps.detect_changes.outputs.has_changes }}"
+
+          if [ "$expected" = "$actual" ]; then
+            echo "✅ 测试通过: 变更检测正确"
+          else
+            echo "❌ 测试失败: 变更检测不正确"
+            echo "预期: $expected, 实际: $actual"
+            exit 1
+          fi
+
+  test-interaction-detection:
+    name: "测试: 交互检测"
+    runs-on: ubuntu-latest
+    if: inputs.test_scenario == 'interaction_detection'
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 测试交互关键词检测
+        run: |
+          echo "测试交互关键词检测..."
+
+          # 创建测试输出文件
+          test_dir=$(mktemp -d)
+          cd "$test_dir"
+
+          # 测试中文关键词
+          echo "我需要更多信息来完成这个任务" > output1.log
+          if grep -qiE "需要更多信息|请提供|请确认|需要澄清|不确定|waiting for|please provide|need more information|clarification needed|could you|can you provide|please clarify|human interaction|requires confirmation" output1.log; then
+            echo "✅ 中文关键词检测成功"
+          else
+            echo "❌ 中文关键词检测失败"
+            exit 1
+          fi
+
+          # 测试英文关键词
+          echo "I need more information to proceed" > output2.log
+          if grep -qiE "需要更多信息|请提供|请确认|需要澄清|不确定|waiting for|please provide|need more information|clarification needed|could you|can you provide|please clarify|human interaction|requires confirmation" output2.log; then
+            echo "✅ 英文关键词检测成功"
+          else
+            echo "❌ 英文关键词检测失败"
+            exit 1
+          fi
+
+          # 测试无交互场景
+          echo "Task completed successfully" > output3.log
+          if grep -qiE "需要更多信息|请提供|请确认|需要澄清|不确定|waiting for|please provide|need more information|clarification needed|could you|can you provide|please clarify|human interaction|requires confirmation" output3.log; then
+            echo "❌ 误检测交互（false positive）"
+            exit 1
+          else
+            echo "✅ 正确识别无交互场景"
+          fi
+
+          echo ""
+          echo "✅ 所有交互检测测试通过"
+
+  test-scripts-integration:
+    name: "测试: 脚本集成"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 运行所有单元测试
+        run: |
+          echo "=========================================="
+          echo "运行完整单元测试套件"
+          echo "=========================================="
+
+          cd .github/tests/unit
+
+          echo ""
+          echo "1️⃣ 测试 setup-branch.sh"
+          bash test-setup-branch.sh
+
+          echo ""
+          echo "2️⃣ 测试 setup-env.sh"
+          bash test-setup-env.sh
+
+          echo ""
+          echo "3️⃣ 测试 run-claude.sh"
+          bash test-run-claude.sh
+
+          echo ""
+          echo "=========================================="
+          echo "✅ 所有单元测试通过"
+          echo "=========================================="
+
+  test-summary:
+    name: "测试总结"
+    runs-on: ubuntu-latest
+    needs:
+      - test-branch-management
+      - test-env-setup
+      - test-change-detection
+      - test-interaction-detection
+      - test-scripts-integration
+    if: always()
+
+    steps:
+      - name: 汇总测试结果
+        run: |
+          echo "=========================================="
+          echo "集成测试总结: 执行工作流"
+          echo "=========================================="
+          echo "测试场景: ${{ inputs.test_scenario }}"
+          echo ""
+
+          # 检查各个测试任务的结果
+          branch_result="${{ needs.test-branch-management.result }}"
+          env_result="${{ needs.test-env-setup.result }}"
+          change_result="${{ needs.test-change-detection.result }}"
+          interaction_result="${{ needs.test-interaction-detection.result }}"
+          scripts_result="${{ needs.test-scripts-integration.result }}"
+
+          echo "分支管理: ${branch_result:-skipped}"
+          echo "环境配置: ${env_result:-skipped}"
+          echo "变更检测: ${change_result:-skipped}"
+          echo "交互检测: ${interaction_result:-skipped}"
+          echo "脚本集成: ${scripts_result:-skipped}"
+          echo ""
+
+          # 判断总体结果
+          failed=0
+          for result in "$branch_result" "$env_result" "$change_result" "$interaction_result" "$scripts_result"; do
+            if [ "$result" = "failure" ]; then
+              failed=1
+              break
+            fi
+          done
+
+          if [ $failed -eq 1 ]; then
+            echo "❌ 部分测试失败"
+            exit 1
+          else
+            echo "✅ 所有测试通过"
+          fi

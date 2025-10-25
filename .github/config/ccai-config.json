@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "description": "CCAI (Claude Code AI Assistant) Configuration",
+
+  "database": {
+    "user": "test_user",
+    "password": "test_password",
+    "database": "nestjs_ci_test",
+    "port": 5432
+  },
+
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 1
+  },
+
+  "workflow": {
+    "timeout_minutes": 60,
+    "node_version": "20",
+    "default_branch": "main"
+  },
+
+  "messages": {
+    "permission_denied": "❌ **权限不足**\n\n只有拥有仓库写权限的用户可以触发 @ccai 命令。\n\n请联系仓库管理员获取权限。",
+    "empty_prompt": "❌ **缺少提示词**\n\n请在 `@ccai` 后面提供您的编程任务描述。\n\n**使用方法**:\n```\n@ccai <您的任务描述>\n```\n\n**示例**:\n- `@ccai 添加一个健康检查端点`\n- `@ccai 实现用户登录功能`",
+    "issue_not_found": "❌ **无法提取 Issue ID**\n\n此 PR 评论需要关联一个 Issue。\n\n请在 PR 描述中添加以下内容之一:\n- `Closes #<issue_number>`\n- `Fixes #<issue_number>`\n- `Resolves #<issue_number>`",
+    "processing": "🤖 **Claude Code 正在处理您的请求...**\n\n📝 **任务**: {prompt}\n🔗 **查看进度**: [Actions 运行日志]({actions_url})",
+    "queued": "🔄 **您的请求已加入队列**\n\n前面有其他任务正在执行，请稍候...\n\n📝 **任务**: {prompt}\n🔗 **查看队列**: [Actions 运行日志]({actions_url})",
+    "success": "✅ **Claude Code 已完成任务**\n\n📝 **任务**: {prompt}\n🔗 **Pull Request**: {pr_url}\n⏱️ **执行时间**: {duration}\n\n请审查 PR 并在确认后合并。",
+    "failure": "❌ **Claude Code 执行失败**\n\n📝 **任务**: {prompt}\n📊 **错误详情**: [查看日志]({actions_url})\n\n请检查日志并手动处理，或调整任务描述后重试。",
+    "no_changes": "⚠️ **未检测到代码变更**\n\n📝 **任务**: {prompt}\n\nClaude Code 已执行，但未生成任何代码变更。\n\n可能的原因:\n- 任务已完成（代码已存在）\n- 任务描述不够明确\n- Claude 认为不需要修改代码\n\n请检查是否需要调整任务描述。",
+    "interaction_needed": "🤔 **Claude 需要更多信息**\n\n📝 **原始任务**: {prompt}\n\n💬 **Claude 的回复**:\n{claude_output}\n\n请提供更多信息后重新触发。"
+  },
+
+  "pr_template": {
+    "title": "feat: AI-generated solution for #{issue_number}",
+    "body": "Closes #{issue_number}\n\n## 🤖 由 Claude Code 自动生成\n\n**原始请求**: {prompt}\n\n**执行时间**: {timestamp}\n\n### 📋 变更说明\n\nClaude Code 已根据 Issue #{issue_number} 的需求自动生成以下代码变更。\n\n### ✅ 审查清单\n\n- [ ] 代码功能正确\n- [ ] 测试通过（如有）\n- [ ] 代码风格符合规范\n- [ ] 文档已更新（如需要）\n\n---\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+  },
+
+  "claude": {
+    "cli_flags": ["-p"],
+    "interaction_keywords": [
+      "需要更多信息",
+      "请提供",
+      "需要澄清",
+      "不确定",
+      "waiting for",
+      "please provide",
+      "need more information",
+      "clarification needed"
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+Closes #123
+
+## 🤖 由 Claude Code 自动生成
+
+**原始请求**: implement a health check endpoint
+**创建时间**: 2025-10-25T10:30:00Z
+
+### 📋 变更说明
+
+Claude Code 已根据 Issue #123 的需求自动生成以下代码变更。
+
+#### 新增功能
+- ✅ 健康检查端点 (`GET /health`)
+- ✅ 系统状态监控
+- ✅ 数据库连接检查
+- ✅ Redis 连接检查
+
+#### 文件变更
+- `src/modules/health/health.controller.ts` - 健康检查控制器
+- `src/modules/health/health.module.ts` - 健康检查模块
+- `src/modules/health/dto/health-response.dto.ts` - 响应 DTO
+- `src/app.module.ts` - 注册健康检查模块
+
+### ✅ 审查清单
+
+请审查以下内容：
+
+- [ ] 代码功能正确
+- [ ] 测试通过(如有)
+- [ ] 代码风格符合规范
+- [ ] 文档已更新(如需要)
+- [ ] 无安全隐患
+
+### 🧪 测试建议
+
+```bash
+# 测试健康检查端点
+curl http://localhost:3000/health
+
+# 预期响应
+{
+  "status": "ok",
+  "timestamp": "2025-10-25T10:30:00.000Z",
+  "uptime": 123.456,
+  "database": "connected",
+  "redis": "connected"
+}
+```
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
