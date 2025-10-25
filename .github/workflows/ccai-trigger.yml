@@ -21,8 +21,8 @@ jobs:
     name: Validate & Extract Parameters
     runs-on: ubuntu-latest
 
-    # 仅在评论以 @ccai 开头时触发（大小写不敏感）
-    if: startsWith(toLower(github.event.comment.body), '@ccai')
+    # 仅在评论包含 @ccai 时触发（通过 JavaScript 实现大小写不敏感检查）
+    if: github.event.comment.body != ''
 
     outputs:
       should_proceed: ${{ steps.validate.outputs.should_proceed }}
@@ -32,10 +32,31 @@ jobs:
 
     steps:
       # ------------------------------------------
-      # 步骤 1: 权限验证
+      # 步骤 1: 检查触发词（大小写不敏感）
+      # ------------------------------------------
+      - name: Check trigger word
+        id: check-trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = context.payload.comment.body;
+            // 大小写不敏感检查是否以 @ccai 开头
+            const hasTrigger = /^@ccai\s+/i.test(commentBody);
+
+            if (!hasTrigger) {
+              console.log('Comment does not start with @ccai (case-insensitive), skipping...');
+              return false;
+            }
+
+            core.setOutput('has_trigger', hasTrigger);
+            return hasTrigger;
+
+      # ------------------------------------------
+      # 步骤 2: 权限验证
       # ------------------------------------------
       - name: Check user permission
         id: check-permission
+        if: steps.check-trigger.outputs.has_trigger == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -61,11 +82,11 @@ jobs:
             return hasPermission;
 
       # ------------------------------------------
-      # 步骤 2: 提取 Issue ID
+      # 步骤 3: 提取 Issue ID
       # ------------------------------------------
       - name: Extract Issue ID
         id: extract-issue
-        if: steps.check-permission.outputs.has_permission == 'true'
+        if: steps.check-trigger.outputs.has_trigger == 'true' && steps.check-permission.outputs.has_permission == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -110,7 +131,7 @@ jobs:
             return issueNumber;
 
       # ------------------------------------------
-      # 步骤 3: 提取提示词
+      # 步骤 4: 提取提示词
       # ------------------------------------------
       - name: Extract prompt
         id: extract-prompt
@@ -138,7 +159,7 @@ jobs:
             return prompt;
 
       # ------------------------------------------
-      # 步骤 4: 创建初始反馈评论
+      # 步骤 5: 创建初始反馈评论
       # ------------------------------------------
       - name: Post initial comment
         id: initial-comment
@@ -158,13 +179,14 @@ jobs:
             return comment.id;
 
       # ------------------------------------------
-      # 步骤 5: 设置验证标志
+      # 步骤 6: 设置验证标志
       # ------------------------------------------
       - name: Set validation result
         id: validate
         if: always()
         run: |
-          if [ "${{ steps.check-permission.outputs.has_permission }}" == "true" ] && \
+          if [ "${{ steps.check-trigger.outputs.has_trigger }}" == "true" ] && \
+             [ "${{ steps.check-permission.outputs.has_permission }}" == "true" ] && \
              [ -n "${{ steps.extract-issue.outputs.issue_number }}" ] && \
              [ -n "${{ steps.extract-prompt.outputs.prompt }}" ]; then
             echo "should_proceed=true" >> $GITHUB_OUTPUT

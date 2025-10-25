@@ -15,8 +15,8 @@ permissions:
 
 jobs:
   ccai-task:
-    # 仅在评论以 @ccai 开头时触发（大小写不敏感）
-    if: startsWith(toLower(github.event.comment.body), '@ccai')
+    # 仅在评论不为空时触发（大小写不敏感检查在步骤中实现）
+    if: github.event.comment.body != ''
 
     runs-on: ubuntu-latest
     timeout-minutes: 60  # 工作流最大执行时间
@@ -54,10 +54,31 @@ jobs:
 
     steps:
       # ==========================================
-      # 步骤 1: 权限验证
+      # 步骤 1: 检查触发词（大小写不敏感）
+      # ==========================================
+      - name: Check trigger word
+        id: check-trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = context.payload.comment.body;
+            // 大小写不敏感检查是否以 @ccai 开头
+            const hasTrigger = /^@ccai\s+/i.test(commentBody);
+
+            if (!hasTrigger) {
+              console.log('Comment does not start with @ccai (case-insensitive), skipping...');
+              core.setFailed('Not a valid @ccai trigger');
+              return false;
+            }
+
+            return hasTrigger;
+
+      # ==========================================
+      # 步骤 2: 权限验证
       # ==========================================
       - name: Check user permission
         id: check-permission
+        if: steps.check-trigger.conclusion == 'success'
         uses: actions/github-script@v7
         with:
           script: |
@@ -82,10 +103,11 @@ jobs:
             return hasPermission;
 
       # ==========================================
-      # 步骤 2: 提取 Issue ID
+      # 步骤 3: 提取 Issue ID
       # ==========================================
       - name: Extract Issue ID
         id: extract-issue
+        if: steps.check-permission.conclusion == 'success'
         uses: actions/github-script@v7
         with:
           script: |
@@ -132,7 +154,7 @@ jobs:
             return issueNumber;
 
       # ==========================================
-      # 步骤 3: 提取用户提示词
+      # 步骤 4: 提取用户提示词
       # ==========================================
       - name: Extract prompt
         id: extract-prompt
@@ -159,7 +181,7 @@ jobs:
             return prompt;
 
       # ==========================================
-      # 步骤 4: 创建初始反馈评论
+      # 步骤 5: 创建初始反馈评论
       # ==========================================
       - name: Post initial comment
         id: initial-comment
@@ -178,7 +200,7 @@ jobs:
             return comment.id;
 
       # ==========================================
-      # 步骤 5: 检出代码
+      # 步骤 6: 检出代码
       # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -187,7 +209,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # ==========================================
-      # 步骤 6: 分支管理
+      # 步骤 7: 分支管理
       # ==========================================
       - name: Setup branch
         id: setup-branch
@@ -214,7 +236,7 @@ jobs:
           echo "✅ Branch setup complete: $BRANCH_NAME"
 
       # ==========================================
-      # 步骤 7: 设置 Node.js
+      # 步骤 8: 设置 Node.js
       # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -223,14 +245,14 @@ jobs:
           cache: 'npm'
 
       # ==========================================
-      # 步骤 8: 安装依赖
+      # 步骤 9: 安装依赖
       # ==========================================
       - name: Install dependencies
         run: |
           npm ci --prefer-offline --no-audit
 
       # ==========================================
-      # 步骤 9: 创建环境配置文件
+      # 步骤 10: 创建环境配置文件
       # ==========================================
       - name: Create environment file
         run: |
@@ -260,7 +282,7 @@ jobs:
           cat .env.development.local | grep -v "ANTHROPIC_API_KEY"
 
       # ==========================================
-      # 步骤 10: 安装 Claude Code CLI
+      # 步骤 11: 安装 Claude Code CLI
       # ==========================================
       - name: Install Claude Code CLI
         run: |
@@ -268,7 +290,7 @@ jobs:
           claude --version
 
       # ==========================================
-      # 步骤 11: 执行 Claude Code 任务
+      # 步骤 12: 执行 Claude Code 任务
       # ==========================================
       - name: Run Claude Code
         id: run-claude
@@ -301,7 +323,7 @@ jobs:
           exit $CLAUDE_EXIT_CODE
 
       # ==========================================
-      # 步骤 12: 处理 Claude 交互请求
+      # 步骤 13: 处理 Claude 交互请求
       # ==========================================
       - name: Handle Claude interaction
         if: steps.run-claude.outputs.interaction_detected == 'true'
@@ -319,7 +341,7 @@ jobs:
             });
 
       # ==========================================
-      # 步骤 13: 检查 Git 变更
+      # 步骤 14: 检查 Git 变更
       # ==========================================
       - name: Check for changes
         id: check-changes
@@ -334,7 +356,7 @@ jobs:
           fi
 
       # ==========================================
-      # 步骤 14: 推送变更
+      # 步骤 15: 推送变更
       # ==========================================
       - name: Push changes
         if: steps.check-changes.outputs.has_changes == 'true'
@@ -351,7 +373,7 @@ jobs:
           echo "✅ Changes pushed to branch: $BRANCH_NAME"
 
       # ==========================================
-      # 步骤 15: 创建 Pull Request
+      # 步骤 16: 创建 Pull Request
       # ==========================================
       - name: Create Pull Request
         if: steps.check-changes.outputs.has_changes == 'true' && steps.run-claude.outputs.exit_code == '0'
@@ -399,7 +421,7 @@ jobs:
             return prUrl;
 
       # ==========================================
-      # 步骤 16: 更新成功评论
+      # 步骤 17: 更新成功评论
       # ==========================================
       - name: Update comment on success
         if: success() && steps.create-pr.outputs.pr_url
@@ -418,7 +440,7 @@ jobs:
             });
 
       # ==========================================
-      # 步骤 17: 更新失败评论
+      # 步骤 18: 更新失败评论
       # ==========================================
       - name: Update comment on failure
         if: failure()
@@ -437,7 +459,7 @@ jobs:
             });
 
       # ==========================================
-      # 步骤 18: 更新无变更评论
+      # 步骤 19: 更新无变更评论
       # ==========================================
       - name: Update comment on no changes
         if: success() && steps.check-changes.outputs.has_changes == 'false'
