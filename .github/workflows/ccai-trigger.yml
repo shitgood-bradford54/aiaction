@@ -1,0 +1,188 @@
+name: CCAI Trigger - Issue/PR Comment Listener
+
+# 触发事件: Issue 评论和 PR Review 评论
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+# 权限配置
+permissions:
+  contents: write       # 允许推送代码
+  pull-requests: write  # 允许创建和更新 PR
+  issues: write         # 允许创建和更新评论
+
+jobs:
+  # ==========================================
+  # Job 1: 验证和参数提取
+  # ==========================================
+  validate-and-extract:
+    name: Validate & Extract Parameters
+    runs-on: ubuntu-latest
+
+    # 仅在评论以 @ccai 开头时触发
+    if: startsWith(github.event.comment.body, '@ccai')
+
+    outputs:
+      should_proceed: ${{ steps.validate.outputs.should_proceed }}
+      issue_number: ${{ steps.extract-issue.outputs.issue_number }}
+      prompt: ${{ steps.extract-prompt.outputs.prompt }}
+      comment_id: ${{ steps.initial-comment.outputs.comment_id }}
+
+    steps:
+      # ------------------------------------------
+      # 步骤 1: 权限验证
+      # ------------------------------------------
+      - name: Check user permission
+        id: check-permission
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.actor
+            });
+
+            const hasPermission = ['admin', 'write'].includes(permission.permission);
+
+            if (!hasPermission) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '❌ 权限不足: 只有拥有 write 或 admin 权限的用户才能触发 Claude Code。'
+              });
+              core.setFailed('User does not have sufficient permissions');
+            }
+
+            core.setOutput('has_permission', hasPermission);
+            return hasPermission;
+
+      # ------------------------------------------
+      # 步骤 2: 提取 Issue ID
+      # ------------------------------------------
+      - name: Extract Issue ID
+        id: extract-issue
+        if: steps.check-permission.outputs.has_permission == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let issueNumber = null;
+
+            // 场景 1: Issue 评论
+            if (context.eventName === 'issue_comment') {
+              issueNumber = context.issue.number;
+              console.log(`Issue comment detected: #${issueNumber}`);
+            }
+            // 场景 2: PR Review 评论
+            else if (context.eventName === 'pull_request_review_comment') {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+
+              const body = pr.body || '';
+              const issueMatch = body.match(/(?:Closes|Fixes|Resolves)\s+#(\d+)/i);
+
+              if (issueMatch) {
+                issueNumber = parseInt(issueMatch[1], 10);
+                console.log(`PR comment detected, extracted issue: #${issueNumber}`);
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: '❌ 无法从 PR 描述中提取 Issue 编号。请在 PR 描述中添加 "Closes #xxx" 或 "Fixes #xxx"。'
+                });
+                core.setFailed('Unable to extract issue number from PR');
+                return null;
+              }
+            }
+
+            if (!issueNumber) {
+              core.setFailed('Failed to determine issue number');
+            }
+
+            core.setOutput('issue_number', issueNumber);
+            return issueNumber;
+
+      # ------------------------------------------
+      # 步骤 3: 提取提示词
+      # ------------------------------------------
+      - name: Extract prompt
+        id: extract-prompt
+        if: steps.extract-issue.outputs.issue_number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = context.payload.comment.body;
+            const prompt = commentBody.replace(/^@ccai\s+/, '').trim();
+
+            if (!prompt) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '❌ 请提供具体的任务描述。格式: `@ccai <your task description>`'
+              });
+              core.setFailed('Empty prompt');
+              return null;
+            }
+
+            core.setOutput('prompt', prompt);
+            console.log(`Extracted prompt: ${prompt}`);
+            return prompt;
+
+      # ------------------------------------------
+      # 步骤 4: 创建初始反馈评论
+      # ------------------------------------------
+      - name: Post initial comment
+        id: initial-comment
+        if: steps.extract-prompt.outputs.prompt
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prompt = `${{ steps.extract-prompt.outputs.prompt }}`;
+            const { data: comment } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🤖 Claude Code 正在处理您的请求...\n\n📋 **任务**: ${prompt}\n\n⏳ 请稍候...`
+            });
+
+            core.setOutput('comment_id', comment.id);
+            return comment.id;
+
+      # ------------------------------------------
+      # 步骤 5: 设置验证标志
+      # ------------------------------------------
+      - name: Set validation result
+        id: validate
+        if: always()
+        run: |
+          if [ "${{ steps.check-permission.outputs.has_permission }}" == "true" ] && \
+             [ -n "${{ steps.extract-issue.outputs.issue_number }}" ] && \
+             [ -n "${{ steps.extract-prompt.outputs.prompt }}" ]; then
+            echo "should_proceed=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_proceed=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ==========================================
+  # Job 2: 调用执行工作流
+  # ==========================================
+  execute-task:
+    name: Execute Claude Code Task
+    needs: validate-and-extract
+    if: needs.validate-and-extract.outputs.should_proceed == 'true'
+    uses: ./.github/workflows/ccai-execute.yml
+    with:
+      issue_number: ${{ needs.validate-and-extract.outputs.issue_number }}
+      prompt: ${{ needs.validate-and-extract.outputs.prompt }}
+      comment_id: ${{ needs.validate-and-extract.outputs.comment_id }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
