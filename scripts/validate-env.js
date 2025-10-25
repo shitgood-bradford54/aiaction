@@ -3,8 +3,13 @@
  * 用途：在应用启动前验证必要的环境变量是否存在
  */
 
-const fs = require('fs');
-const path = require('path');
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 定义必需的环境变量
 const requiredVars = [
@@ -43,8 +48,8 @@ let envFilePath = null;
 let envFileName = null;
 
 for (const file of envFiles) {
-  const filePath = path.resolve(process.cwd(), file);
-  if (fs.existsSync(filePath)) {
+  const filePath = resolve(process.cwd(), file);
+  if (existsSync(filePath)) {
     envFilePath = filePath;
     envFileName = file;
     break;
@@ -66,7 +71,7 @@ console.log(`✓ Found environment file: ${envFileName}`);
 console.log('');
 
 // 读取环境变量文件内容
-const envContent = fs.readFileSync(envFilePath, 'utf-8');
+const envContent = readFileSync(envFilePath, 'utf-8');
 
 // 验证必需的环境变量
 console.log('Checking required variables...');

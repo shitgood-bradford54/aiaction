@@ -111,17 +111,16 @@ describe('PostgreSQL Connection (e2e)', () => {
     it('should connect to database on module init', async () => {
       // PrismaService 应该在模块初始化时自动连接
       // 我们通过执行一个简单查询来验证连接状态
-      await expect(
-        prismaService.$queryRaw`SELECT 1`
-      ).resolves.toBeDefined();
+      await expect(prismaService.$queryRaw`SELECT 1`).resolves.toBeDefined();
     });
   });
 
   describe('Connection Pool', () => {
     it('should handle multiple concurrent queries', async () => {
       // 测试连接池能否处理并发查询
-      const queries = Array.from({ length: 5 }, (_, i) =>
-        prismaService.$queryRaw`SELECT ${i} as query_id`
+      const queries = Array.from(
+        { length: 5 },
+        (_, i) => prismaService.$queryRaw`SELECT ${i} as query_id`,
       );
 
       const results = await Promise.all(queries);

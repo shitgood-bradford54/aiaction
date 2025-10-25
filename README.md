@@ -46,33 +46,46 @@ npm install
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env` 并修改配置:
+使用 DX CLI 快速设置环境:
 
 ```bash
-cp .env.example .env
+# 设置开发环境
+./scripts/dx env setup --dev
+
+# 编辑本地配置
+vim .env.development.local
 ```
 
-修改 `.env` 文件中的数据库和 Redis 连接信息。
+或者手动创建:
+
+```bash
+cp .env.example .env.development.local
+```
+
+修改 `.env.development.local` 文件中的数据库和 Redis 连接信息。
 
 ### 3. 初始化数据库
 
 ```bash
 # 生成 Prisma Client
-npm run prisma:generate
+./scripts/dx db generate
 
 # 运行数据库迁移
-npm run prisma:migrate
+./scripts/dx db migrate --dev
 ```
 
 ### 4. 启动应用
 
 ```bash
 # 开发模式
-npm run start:dev
+./scripts/dx start dev
+
+# 调试模式
+./scripts/dx start debug
 
 # 生产模式
-npm run build
-npm run start:prod
+./scripts/dx build --prod
+./scripts/dx start prod
 ```
 
 应用将在 `http://localhost:3000` 启动。
@@ -85,7 +98,71 @@ npm run start:prod
 http://localhost:3000/api
 ```
 
-## 可用脚本
+## DX CLI - 统一命令管理工具
+
+本项目使用 **DX CLI** 统一管理所有开发命令,提供更好的开发体验。
+
+### 常用命令
+
+```bash
+# 查看帮助
+./scripts/dx --help
+
+# 启动服务
+./scripts/dx start dev          # 开发服务器
+./scripts/dx start debug        # 调试服务器
+
+# 构建应用
+./scripts/dx build --dev        # 开发版本
+./scripts/dx build --prod       # 生产版本
+
+# 数据库操作
+./scripts/dx db generate        # 生成 Prisma Client
+./scripts/dx db migrate --dev   # 数据库迁移
+./scripts/dx db reset --dev     # 重置数据库
+./scripts/dx db studio          # 打开 Prisma Studio
+
+# 测试
+./scripts/dx test unit          # 单元测试
+./scripts/dx test e2e           # E2E 测试
+./scripts/dx test cov           # 测试覆盖率
+
+# 代码质量
+./scripts/dx lint               # 代码检查
+./scripts/dx format             # 代码格式化
+
+# 环境管理
+./scripts/dx env setup --dev    # 设置开发环境
+./scripts/dx env validate       # 验证环境变量
+
+# 清理操作
+./scripts/dx clean dist         # 清理构建产物
+./scripts/dx clean deps         # 重装依赖
+```
+
+### DX CLI 优势
+
+1. **统一接口** - 所有操作通过 dx 统一管理
+2. **智能环境管理** - 自动加载正确的环境变量
+3. **安全机制** - 危险操作自动确认
+4. **端口管理** - 自动处理端口冲突
+5. **友好提示** - 详细的错误信息和建议
+
+### 详细文档
+
+- **快速入门**: `scripts/QUICKSTART.md`
+- **完整文档**: `scripts/README.md`
+- **使用规范**: `NPM_SCRIPTS.md`
+- **项目指南**: `CLAUDE.md`
+
+## 传统命令 (不推荐)
+
+> ⚠️ **注意**: 建议使用 DX CLI 代替直接使用 npm scripts。
+>
+> 查看 `NPM_SCRIPTS.md` 了解为什么。
+
+<details>
+<summary>点击查看传统 npm scripts (仅供参考)</summary>
 
 - `npm run build` - 编译项目
 - `npm run start` - 启动应用
@@ -97,6 +174,8 @@ http://localhost:3000/api
 - `npm run prisma:generate` - 生成 Prisma Client
 - `npm run prisma:migrate` - 运行数据库迁移
 - `npm run prisma:studio` - 打开 Prisma Studio
+
+</details>
 
 ## API 端点
 

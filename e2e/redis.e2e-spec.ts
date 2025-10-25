@@ -266,11 +266,7 @@ describe('Redis Connection (e2e)', () => {
 
       for (let i = 0; i < 10; i++) {
         const key = `${TEST_KEY_PREFIX}perf:${i}`;
-        operations.push(
-          redisService.set(key, `value-${i}`).then(() =>
-            redisService.get(key)
-          )
-        );
+        operations.push(redisService.set(key, `value-${i}`).then(() => redisService.get(key)));
       }
 
       const results = await Promise.all(operations);

@@ -1,0 +1,18 @@
+{
+  "development": [
+    ".env.development",
+    ".env.development.local"
+  ],
+  "production": [
+    ".env.production",
+    ".env.production.local"
+  ],
+  "test": [
+    ".env.test",
+    ".env.test.local"
+  ],
+  "e2e": [
+    ".env.e2e",
+    ".env.e2e.local"
+  ]
+}

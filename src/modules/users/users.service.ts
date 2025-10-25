@@ -49,8 +49,8 @@ export class UsersService {
       },
     });
 
-    // 缓存结果 (5分钟)
-    await this.redis.set('users:all', JSON.stringify(users), 300);
+    // 缓存结果 (5分钟 = 300秒)
+    await this.redis.set('users:all', JSON.stringify(users), 'EX', 300);
 
     return users;
   }
@@ -80,8 +80,8 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // 缓存结果 (5分钟)
-    await this.redis.set(cacheKey, JSON.stringify(user), 300);
+    // 缓存结果 (5分钟 = 300秒)
+    await this.redis.set(cacheKey, JSON.stringify(user), 'EX', 300);
 
     return user;
   }

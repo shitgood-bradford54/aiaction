@@ -17,9 +17,7 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('app', () => {
   // 验证必需的环境变量
   const requiredEnvVars = ['DATABASE_URL', 'REDIS_HOST', 'REDIS_PORT'];
-  const missingVars = requiredEnvVars.filter(
-    (varName) => !process.env[varName],
-  );
+  const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
 
   if (missingVars.length > 0) {
     throw new Error(

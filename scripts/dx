@@ -1,0 +1,389 @@
+#!/usr/bin/env node
+
+/**
+ * DX CLI - NestJS 项目统一管理工具
+ *
+ * 用法:
+ *   dx start [service] [环境标志]  - 启动服务
+ *   dx build [环境标志]            - 构建应用
+ *   dx db [action] [环境标志]      - 数据库操作
+ *   dx test [type]                 - 运行测试
+ *   dx lint                        - 代码检查
+ *   dx format                      - 代码格式化
+ *   dx env [action] [环境标志]     - 环境管理
+ *   dx clean [target]              - 清理操作
+ *
+ * 全局选项:
+ *   --dev, --development      - 开发环境
+ *   --prod, --production      - 生产环境
+ *   --test                    - 测试环境
+ *   --e2e                     - E2E测试环境
+ *   -Y, --yes                 - 跳过确认提示
+ *   -v, --verbose             - 详细输出
+ *   -h, --help                - 显示帮助信息
+ */
+
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+import { logger } from './lib/logger.js'
+import { envManager } from './lib/env.js'
+import { execManager } from './lib/exec.js'
+import { confirmManager } from './lib/confirm.js'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+class DxCli {
+  constructor() {
+    this.commands = this.loadCommands()
+    this.args = process.argv.slice(2)
+    this.flags = this.parseFlags()
+  }
+
+  loadCommands() {
+    try {
+      const configPath = join(__dirname, 'config/commands.json')
+      return JSON.parse(readFileSync(configPath, 'utf8'))
+    } catch (error) {
+      logger.error('无法加载命令配置文件')
+      logger.error(error.message)
+      process.exit(1)
+    }
+  }
+
+  parseFlags() {
+    const flags = {}
+    for (const arg of this.args) {
+      if (!arg.startsWith('-')) continue
+
+      switch (arg) {
+        case '--dev':
+        case '--development':
+          flags.dev = true
+          break
+        case '--prod':
+        case '--production':
+          flags.prod = true
+          break
+        case '--test':
+          flags.test = true
+          break
+        case '--e2e':
+          flags.e2e = true
+          break
+        case '-Y':
+        case '--yes':
+          flags.Y = true
+          break
+        case '-v':
+        case '--verbose':
+          flags.verbose = true
+          break
+        case '-h':
+        case '--help':
+          flags.help = true
+          break
+      }
+    }
+    return flags
+  }
+
+  getCleanArgs() {
+    return this.args.filter(arg => !arg.startsWith('-'))
+  }
+
+  async run() {
+    try {
+      const cleanArgs = this.getCleanArgs()
+
+      if (this.flags.help || cleanArgs.length === 0) {
+        this.showHelp()
+        return
+      }
+
+      if (this.flags.verbose) {
+        logger.logLevel = 'debug'
+        logger.debug('启用详细输出模式')
+      }
+
+      await this.routeCommand()
+    } catch (error) {
+      logger.error('命令执行失败')
+      logger.error(error.message)
+
+      if (this.flags.verbose) {
+        console.error(error.stack)
+      }
+
+      process.exit(1)
+    }
+  }
+
+  async routeCommand() {
+    const cleanArgs = this.getCleanArgs()
+    const [command, ...subArgs] = cleanArgs
+
+    switch (command) {
+      case 'start':
+        await this.handleStart(subArgs)
+        break
+      case 'build':
+        await this.handleBuild(subArgs)
+        break
+      case 'db':
+        await this.handleDatabase(subArgs)
+        break
+      case 'test':
+        await this.handleTest(subArgs)
+        break
+      case 'lint':
+        await this.handleLint()
+        break
+      case 'format':
+        await this.handleFormat()
+        break
+      case 'env':
+        await this.handleEnv(subArgs)
+        break
+      case 'clean':
+        await this.handleClean(subArgs)
+        break
+      default:
+        logger.error(`未知命令: ${command}`)
+        this.showHelp()
+        process.exit(1)
+    }
+  }
+
+  async handleStart(args) {
+    const service = args[0] || 'dev'
+    const environment = envManager.detectEnvironment(this.flags)
+
+    const startConfig = this.commands.start[service]
+    if (!startConfig) {
+      logger.error(`未找到启动配置: ${service}`)
+      process.exit(1)
+      return
+    }
+
+    logger.step(`启动 ${service} 服务 (${environment})`)
+    await this.executeCommand(startConfig)
+  }
+
+  async handleBuild(args) {
+    const environment = envManager.detectEnvironment(this.flags)
+    const envKey = environment === 'production' ? 'prod' : 'dev'
+
+    const buildConfig = this.commands.build[envKey]
+    if (!buildConfig) {
+      logger.error(`未找到构建配置: ${envKey}`)
+      process.exit(1)
+      return
+    }
+
+    logger.step(`构建应用 (${environment})`)
+    await this.executeCommand(buildConfig)
+  }
+
+  async handleDatabase(args) {
+    const action = args[0]
+    if (!action) {
+      logger.error('请指定数据库操作: generate, migrate, reset, studio, seed')
+      process.exit(1)
+      return
+    }
+
+    const dbConfig = this.commands.db[action]
+    if (!dbConfig) {
+      logger.error(`未找到数据库操作: ${action}`)
+      process.exit(1)
+      return
+    }
+
+    const environment = envManager.detectEnvironment(this.flags)
+    logger.step(`执行数据库操作: ${action} (${environment})`)
+
+    let config = dbConfig
+    if (typeof config === 'object' && !config.command) {
+      const envKey = environment === 'production' ? 'prod' : 'dev'
+      config = config[envKey] || config.dev || config
+    }
+
+    // 危险操作确认
+    if (config.dangerous) {
+      const confirmed = await confirmManager.confirmDatabaseOperation(
+        action,
+        envManager.getEnvironmentDescription(environment),
+        this.flags.Y
+      )
+
+      if (!confirmed) {
+        logger.info('操作已取消')
+        return
+      }
+    }
+
+    await this.executeCommand(config)
+  }
+
+  async handleTest(args) {
+    const type = args[0] || 'unit'
+    const testConfig = this.commands.test[type]
+
+    if (!testConfig) {
+      logger.error(`未找到测试配置: ${type}`)
+      process.exit(1)
+      return
+    }
+
+    logger.step(`运行 ${type} 测试`)
+    await this.executeCommand(testConfig)
+  }
+
+  async handleLint() {
+    logger.step('运行代码检查')
+    await this.executeCommand(this.commands.lint)
+  }
+
+  async handleFormat() {
+    logger.step('运行代码格式化')
+    await this.executeCommand(this.commands.format)
+  }
+
+  async handleEnv(args) {
+    const action = args[0]
+    if (!action) {
+      logger.error('请指定环境操作: setup, validate')
+      process.exit(1)
+      return
+    }
+
+    const envConfig = this.commands.env[action]
+    if (!envConfig) {
+      logger.error(`未找到环境操作: ${action}`)
+      process.exit(1)
+      return
+    }
+
+    const environment = envManager.detectEnvironment(this.flags)
+    logger.step(`执行环境操作: ${action} (${environment})`)
+
+    let config = envConfig
+    if (typeof config === 'object' && !config.command) {
+      const envKey = environment === 'production' ? 'prod' :
+                     environment === 'test' ? 'test' :
+                     environment === 'e2e' ? 'e2e' : 'dev'
+      config = config[envKey] || config
+    }
+
+    await this.executeCommand(config)
+  }
+
+  async handleClean(args) {
+    const target = args[0] || 'all'
+    const cleanConfig = this.commands.clean[target]
+
+    if (!cleanConfig) {
+      logger.error(`未找到清理目标: ${target}`)
+      process.exit(1)
+      return
+    }
+
+    // 危险操作确认
+    if (cleanConfig.dangerous) {
+      const confirmed = await confirmManager.confirmDangerous(
+        `清理操作: ${target}`,
+        '当前环境',
+        this.flags.Y
+      )
+
+      if (!confirmed) {
+        logger.info('操作已取消')
+        return
+      }
+    }
+
+    logger.step(`清理 ${target}`)
+    await this.executeCommand(cleanConfig)
+  }
+
+  async executeCommand(config) {
+    if (!config || !config.command) {
+      logger.error('无效的命令配置')
+      return
+    }
+
+    const options = {
+      flags: this.flags,
+      ports: config.ports || [],
+    }
+
+    await execManager.executeCommand(config.command, options)
+  }
+
+  showHelp() {
+    console.log(`
+DX CLI - NestJS 项目统一管理工具
+
+用法:
+  dx <命令> [选项] [参数...]
+
+命令:
+  start [service]           启动服务
+    service: dev, debug, prod (默认: dev)
+
+  build                     构建应用
+
+  db [action]               数据库操作
+    action: generate, migrate, reset, studio, seed
+
+  test [type]               运行测试
+    type: unit, watch, cov, e2e (默认: unit)
+
+  lint                      代码检查
+  format                    代码格式化
+
+  env [action]              环境管理
+    action: setup, validate
+
+  clean [target]            清理操作
+    target: all, dist, deps (默认: all)
+
+全局选项:
+  --dev, --development      开发环境
+  --prod, --production      生产环境
+  --test                    测试环境
+  --e2e                     E2E测试环境
+  -Y, --yes                 跳过所有确认提示
+  -v, --verbose             详细输出
+  -h, --help                显示帮助信息
+
+示例:
+  dx start dev              启动开发服务器
+  dx build --prod           构建生产版本
+  dx db migrate --dev       执行开发环境数据库迁移
+  dx db reset --dev -Y      重置开发数据库(跳过确认)
+  dx test e2e               运行 E2E 测试
+  dx clean deps             重新安装依赖
+  dx env setup --dev        设置开发环境
+  dx env validate           验证环境变量
+
+环境说明:
+  - 使用环境标志(--dev/--prod/--test/--e2e)显式指定环境
+  - 未指定时默认使用开发环境
+  - 生产环境操作会要求额外确认
+  - 可通过 -Y 标志或环境变量 CI=true 跳过确认
+
+`)
+  }
+}
+
+// 创建并运行 CLI
+const cli = new DxCli()
+cli.run().catch(error => {
+  logger.error('CLI启动失败')
+  logger.error(error.message)
+  process.exit(1)
+})

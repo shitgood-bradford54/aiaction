@@ -8,13 +8,75 @@ This is a NestJS backend scaffold using Prisma (PostgreSQL) and Redis for cachin
 
 ## Essential Commands
 
-### Development
+### DX CLI - 统一管理工具 (推荐)
+
+项目提供了统一的 `dx` CLI 工具用于管理所有开发任务:
+
+```bash
+# 启动服务
+./scripts/dx start dev          # 启动开发服务器 (默认)
+./scripts/dx start debug        # 启动调试服务器
+./scripts/dx start prod         # 启动生产服务器
+npm run dx start dev            # 或通过 npm 运行
+
+# 构建应用
+./scripts/dx build              # 构建应用 (默认开发环境)
+./scripts/dx build --prod       # 构建生产版本
+
+# 数据库操作
+./scripts/dx db generate        # 生成 Prisma Client
+./scripts/dx db migrate --dev   # 执行数据库迁移 (开发环境)
+./scripts/dx db migrate --prod  # 执行数据库迁移 (生产环境)
+./scripts/dx db reset --dev -Y  # 重置数据库 (跳过确认)
+./scripts/dx db studio          # 打开 Prisma Studio
+./scripts/dx db seed --dev      # 执行数据库种子
+
+# 测试
+./scripts/dx test unit          # 运行单元测试
+./scripts/dx test e2e           # 运行 E2E 测试
+./scripts/dx test cov           # 运行测试并生成覆盖率报告
+./scripts/dx test watch         # 监视模式运行测试
+
+# 代码质量
+./scripts/dx lint               # 代码检查
+./scripts/dx format             # 代码格式化
+
+# 环境管理
+./scripts/dx env setup --dev    # 设置开发环境
+./scripts/dx env setup --prod   # 设置生产环境
+./scripts/dx env validate       # 验证环境变量
+
+# 清理操作
+./scripts/dx clean dist         # 清理构建产物
+./scripts/dx clean deps         # 重新安装依赖
+./scripts/dx clean all -Y       # 清理所有 (跳过确认)
+```
+
+**环境标志说明:**
+- `--dev` 或 `--development` - 开发环境 (默认)
+- `--prod` 或 `--production` - 生产环境
+- `--test` - 测试环境
+- `--e2e` - E2E 测试环境
+- `-Y` 或 `--yes` - 跳过所有确认提示
+- `-v` 或 `--verbose` - 详细输出
+- `-h` 或 `--help` - 显示帮助信息
+
+**自动确认:**
+在 CI 环境中自动跳过确认:
+- 设置 `CI=true`
+- 或设置 `AI_CLI_YES=1` / `YES=1`
+
+### 传统命令 (仍然可用)
+
+如果不使用 dx CLI，以下命令仍然可用:
+
+**Development:**
 ```bash
 npm run start:dev          # Start with hot-reload (NODE_ENV=development)
 npm run start:debug        # Start with debugging enabled
 ```
 
-### Environment Setup
+**Environment Setup:**
 ```bash
 npm run env:setup          # Initialize environment files (default: development)
 npm run env:setup:dev      # Setup development environment
@@ -24,13 +86,13 @@ npm run env:setup:e2e      # Setup E2E test environment
 npm run env:validate       # Validate environment variables
 ```
 
-### Build & Production
+**Build & Production:**
 ```bash
 npm run build              # Compile TypeScript to dist/
 npm run start:prod         # Run compiled application
 ```
 
-### Database (Prisma)
+**Database (Prisma):**
 ```bash
 npm run prisma:generate    # Generate Prisma Client (required after schema changes)
 npm run prisma:migrate     # Create and apply migration
@@ -38,7 +100,7 @@ npx prisma migrate dev --name <migration-name>  # Named migration
 npm run prisma:studio      # Open Prisma Studio GUI
 ```
 
-### Testing
+**Testing:**
 ```bash
 npm run test               # Run all tests
 npm run test:watch         # Watch mode
@@ -46,7 +108,7 @@ npm run test:cov           # With coverage report
 npm run test:e2e           # E2E tests only
 ```
 
-### Code Quality
+**Code Quality:**
 ```bash
 npm run lint               # ESLint with auto-fix
 npm run format             # Prettier formatting
