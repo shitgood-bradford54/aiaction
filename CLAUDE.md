@@ -148,7 +148,11 @@ Environment variables follow a **layered loading strategy** with multi-environme
 1. System environment variables (deployment platform injection)
 2. `.env.{NODE_ENV}.local` (local overrides, not committed)
 3. `.env.{NODE_ENV}` (environment defaults, committed)
-4. `.env` (fallback, not recommended)
+
+**Important Notes:**
+- `.env` file is **NOT loaded** and should **NOT exist** in the project
+- If `.env` file exists, the application will show a warning on startup
+- All environment configuration must use `.env.{NODE_ENV}` or `.env.{NODE_ENV}.local` files
 
 **Configuration Object** (`src/config/configuration.ts`):
 ```typescript
@@ -273,6 +277,11 @@ npm run start:dev              # Start development server
 - `CORS_ORIGIN` - CORS allowed origins (comma-separated)
 
 ### Environment File Strategy
+
+**Important: Do NOT use `.env` file**
+- The application **does not load** `.env` file
+- If `.env` exists, a warning will be shown on startup
+- Use environment-specific files instead
 
 **Development:**
 - Use `.env.development.local` for your personal configuration

@@ -4,12 +4,12 @@ import { registerAs } from '@nestjs/config';
  * 应用配置定义
  *
  * 此配置对象通过 @nestjs/config 的 ConfigModule 加载
- * 支持多环境配置文件加载策略：
- * 1. .env.{NODE_ENV}.local (最高优先级)
- * 2. .env.{NODE_ENV}
- * 3. .env (默认)
+ * 支持多环境配置文件加载策略:
+ * 1. .env.{NODE_ENV}.local (最高优先级,本地覆盖)
+ * 2. .env.{NODE_ENV} (环境默认配置)
  *
- * 环境变量验证：
+ * 注意:
+ * - 不加载 .env 文件,如存在会在启动时警告
  * - 启动前使用 `npm run env:validate` 验证必需变量
  * - 生产环境建议使用部署平台注入环境变量
  */
@@ -49,7 +49,7 @@ export default registerAs('app', () => {
       level: process.env.LOG_LEVEL || 'info',
     },
 
-    // API 配置（可选）
+    // API 配置(可选)
     api: {
       prefix: process.env.API_PREFIX || '',
       corsOrigin: process.env.CORS_ORIGIN
@@ -57,7 +57,7 @@ export default registerAs('app', () => {
         : ['http://localhost:3000'],
     },
 
-    // JWT 配置（可选，如需认证功能）
+    // JWT 配置(可选,如需认证功能)
     jwt: {
       secret: process.env.JWT_SECRET,
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',

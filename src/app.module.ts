@@ -13,7 +13,9 @@ import configuration from './config/configuration';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      envFilePath: [`.env.${process.env.NODE_ENV}.local`, `.env.${process.env.NODE_ENV}`, '.env'],
+      // 环境变量加载优先级: .env.{NODE_ENV}.local > .env.{NODE_ENV}
+      // 不加载 .env 文件 (如存在会在启动时警告)
+      envFilePath: [`.env.${process.env.NODE_ENV}.local`, `.env.${process.env.NODE_ENV}`],
       // 生产环境建议使用系统环境变量而非文件
       ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),

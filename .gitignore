@@ -12,12 +12,14 @@ build
 
 # misc
 .DS_Store
-.env
+# 环境变量文件
+.env                        # 不应使用的根 .env 文件
 .env.local
-.env.*.local
+.env.*.local                # 所有本地覆盖文件
 .env.development.local
 .env.test.local
 .env.production.local
+.env.e2e.local
 
 # logs
 npm-debug.log*
@@ -35,5 +37,4 @@ lerna-debug.log*
 *.swo
 
 # Prisma
-.env
 prisma/migrations
