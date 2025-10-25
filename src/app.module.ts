@@ -13,6 +13,13 @@ import configuration from './config/configuration';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+      envFilePath: [
+        `.env.${process.env.NODE_ENV}.local`,
+        `.env.${process.env.NODE_ENV}`,
+        '.env',
+      ],
+      // 生产环境建议使用系统环境变量而非文件
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     CacheModule.register({
       isGlobal: true,

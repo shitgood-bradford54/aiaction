@@ -10,8 +10,18 @@ This is a NestJS backend scaffold using Prisma (PostgreSQL) and Redis for cachin
 
 ### Development
 ```bash
-npm run start:dev          # Start with hot-reload
+npm run start:dev          # Start with hot-reload (NODE_ENV=development)
 npm run start:debug        # Start with debugging enabled
+```
+
+### Environment Setup
+```bash
+npm run env:setup          # Initialize environment files (default: development)
+npm run env:setup:dev      # Setup development environment
+npm run env:setup:prod     # Setup production environment
+npm run env:setup:test     # Setup test environment
+npm run env:setup:e2e      # Setup E2E test environment
+npm run env:validate       # Validate environment variables
 ```
 
 ### Build & Production
@@ -60,16 +70,46 @@ constructor(
 ```
 
 ### Configuration Management
-Environment variables are centralized in `src/config/configuration.ts` and accessed via `ConfigService`. The `ConfigModule` is global.
 
-**Configuration structure:**
+Environment variables follow a **layered loading strategy** with multi-environment support:
+
+**File Structure:**
+- `.env.example` - Template with all variables and documentation (committed)
+- `.env.development` - Development defaults without secrets (committed)
+- `.env.development.local` - Local overrides with real credentials (gitignored)
+- `.env.production` - Production template with placeholders (committed)
+- `.env.production.local` - Real production values (gitignored, use deployment platform)
+- `.env.test` - Unit test configuration (committed)
+- `.env.e2e` - E2E test configuration (committed)
+
+**Loading Priority** (from high to low):
+1. System environment variables (deployment platform injection)
+2. `.env.{NODE_ENV}.local` (local overrides, not committed)
+3. `.env.{NODE_ENV}` (environment defaults, committed)
+4. `.env` (fallback, not recommended)
+
+**Configuration Object** (`src/config/configuration.ts`):
 ```typescript
 {
   port: number,
+  nodeEnv: string,
   database: { url: string },
-  redis: { host, port, password, db }
+  redis: { host, port, password, db },
+  logging: { level: string },
+  api: { prefix, corsOrigin },
+  jwt: { secret, expiresIn }
 }
 ```
+
+**Access via ConfigService:**
+```typescript
+constructor(private configService: ConfigService) {}
+
+const port = this.configService.get<number>('app.port');
+const dbUrl = this.configService.get<string>('app.database.url');
+```
+
+**Detailed Documentation:** See `doc/env-structure-design.md` for complete environment variable management guide.
 
 ### Cache Invalidation Strategy
 The codebase implements cache-aside pattern with manual invalidation:
@@ -125,19 +165,81 @@ Swagger is auto-generated and available at `http://localhost:3000/api` when the 
 
 ## Environment Setup
 
-Required environment variables (`.env`):
-- `DATABASE_URL` - PostgreSQL connection string (Prisma format)
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` - Redis config
-- `PORT` - Application port (default: 3000)
+This project uses a **layered environment variable system** for managing different environments (development, production, test, e2e).
 
-**Before first run:**
+### Quick Start (First Time Setup)
+
 ```bash
-cp .env.example .env        # Create environment file
-# Edit .env with actual credentials
+# 1. Clone and install
+git clone <repository-url>
+cd nestjs-prisma-backend
 npm install
-npm run prisma:generate
-npm run prisma:migrate
+
+# 2. Setup environment variables
+npm run env:setup              # Creates .env.development.local
+
+# 3. Edit your local configuration
+vim .env.development.local     # Add your database credentials
+
+# 4. Initialize database
+npm run prisma:generate        # Generate Prisma Client
+npm run prisma:migrate         # Run migrations
+
+# 5. Validate and start
+npm run env:validate           # Check configuration
+npm run start:dev              # Start development server
 ```
+
+### Environment Variables
+
+**Core Required Variables:**
+- `DATABASE_URL` - PostgreSQL connection string
+  - Format: `postgresql://user:password@host:port/database?schema=public`
+  - Example: `postgresql://postgres:password@localhost:5432/nestjs_dev?schema=public`
+- `REDIS_HOST` - Redis server host (default: localhost)
+- `REDIS_PORT` - Redis server port (default: 6379)
+- `REDIS_PASSWORD` - Redis password (optional for local development)
+- `REDIS_DB` - Redis database number (0 for dev, 1 for test, 2 for e2e)
+
+**Optional Variables:**
+- `PORT` - Application port (default: 3000)
+- `NODE_ENV` - Environment (development | production | test)
+- `LOG_LEVEL` - Logging level (debug | info | warn | error)
+- `JWT_SECRET` - JWT signing secret (required for authentication)
+- `JWT_EXPIRES_IN` - JWT expiration time (e.g., 7d, 24h)
+- `API_PREFIX` - Global API path prefix (e.g., api/v1)
+- `CORS_ORIGIN` - CORS allowed origins (comma-separated)
+
+### Environment File Strategy
+
+**Development:**
+- Use `.env.development.local` for your personal configuration
+- Never commit this file (it's gitignored)
+- `.env.development` provides team defaults (committed, no secrets)
+
+**Production:**
+- Inject environment variables via deployment platform (Kubernetes, Docker, etc.)
+- `.env.production` is a template only (committed with placeholders)
+- Never store real production secrets in the codebase
+
+**Testing:**
+- `.env.test` for unit tests (uses separate database and Redis DB)
+- `.env.e2e` for end-to-end tests (uses different port and database)
+
+### Validation
+
+Before starting the application, you can validate your environment:
+
+```bash
+npm run env:validate
+```
+
+This checks:
+- All required variables are present
+- No placeholder values in non-development environments
+- Production-specific requirements (SSL mode, Redis password, etc.)
+
+**Reference:** Complete environment variable documentation is in `doc/env-structure-design.md`
 
 ## Development Principles
 

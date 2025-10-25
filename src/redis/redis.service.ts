@@ -32,21 +32,29 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.get(key);
   }
 
-  async set(key: string, value: string, ttl?: number): Promise<void> {
-    if (ttl) {
-      await this.client.setEx(key, ttl, value);
+  async set(
+    key: string,
+    value: string,
+    mode?: 'EX' | 'PX',
+    duration?: number,
+  ): Promise<void> {
+    if (mode && duration) {
+      if (mode === 'EX') {
+        await this.client.setEx(key, duration, value);
+      } else if (mode === 'PX') {
+        await this.client.pSetEx(key, duration, value);
+      }
     } else {
       await this.client.set(key, value);
     }
   }
 
-  async del(key: string): Promise<void> {
-    await this.client.del(key);
+  async del(...keys: string[]): Promise<number> {
+    return await this.client.del(keys);
   }
 
-  async exists(key: string): Promise<boolean> {
-    const result = await this.client.exists(key);
-    return result === 1;
+  async exists(...keys: string[]): Promise<number> {
+    return await this.client.exists(keys);
   }
 
   async expire(key: string, seconds: number): Promise<void> {
@@ -55,5 +63,26 @@ export class RedisService implements OnModuleDestroy {
 
   async ttl(key: string): Promise<number> {
     return await this.client.ttl(key);
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    return await this.client.keys(pattern);
+  }
+
+  async ping(): Promise<string> {
+    return await this.client.ping();
+  }
+
+  async info(section?: string): Promise<string> {
+    return await this.client.info(section);
+  }
+
+  async configGet(parameter: string): Promise<Record<string, string>> {
+    const result = await this.client.configGet(parameter);
+    return result as Record<string, string>;
+  }
+
+  async disconnect(): Promise<void> {
+    await this.client.disconnect();
   }
 }
