@@ -15,8 +15,8 @@ permissions:
 
 jobs:
   ccai-task:
-    # 仅在评论以 @ccai 开头时触发
-    if: startsWith(github.event.comment.body, '@ccai')
+    # 仅在评论以 @ccai 开头时触发（大小写不敏感）
+    if: startsWith(toLower(github.event.comment.body), '@ccai')
 
     runs-on: ubuntu-latest
     timeout-minutes: 60  # 工作流最大执行时间
@@ -140,7 +140,8 @@ jobs:
         with:
           script: |
             const commentBody = context.payload.comment.body;
-            const prompt = commentBody.replace(/^@ccai\s+/, '').trim();
+            // 大小写不敏感地移除 @ccai 前缀
+            const prompt = commentBody.replace(/^@ccai\s+/i, '').trim();
 
             if (!prompt) {
               await github.rest.issues.createComment({

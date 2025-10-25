@@ -19,6 +19,7 @@ on:
           - 'issue_comment'
           - 'pr_comment'
           - 'empty_prompt'
+          - 'case_insensitive_trigger'
       comment_body:
         description: '评论内容'
         required: false
@@ -128,7 +129,7 @@ jobs:
   test-prompt-extraction:
     name: "测试: 提示词提取"
     runs-on: ubuntu-latest
-    if: inputs.test_scenario == 'empty_prompt' || inputs.test_scenario == 'issue_comment'
+    if: inputs.test_scenario == 'empty_prompt' || inputs.test_scenario == 'issue_comment' || inputs.test_scenario == 'case_insensitive_trigger'
 
     steps:
       - name: 提取提示词
@@ -137,12 +138,12 @@ jobs:
           comment="${{ inputs.comment_body }}"
           echo "原始评论: $comment"
 
-          # 去除 @ccai 前缀
-          prompt=$(echo "$comment" | sed 's/^@ccai\s*//')
+          # 去除 @ccai 前缀（大小写不敏感）
+          prompt=$(echo "$comment" | sed -E 's/^@[Cc][Cc][Aa][Ii]\s*//')
           echo "提取的提示词: $prompt"
           echo "prompt=$prompt" >> $GITHUB_OUTPUT
 
-          if [ -z "$prompt" ] || [ "$prompt" = "@ccai" ]; then
+          if [ -z "$prompt" ] || echo "$prompt" | grep -qiE '^@ccai$'; then
             echo "empty=true" >> $GITHUB_OUTPUT
           else
             echo "empty=false" >> $GITHUB_OUTPUT
@@ -158,6 +159,14 @@ jobs:
               echo "✅ 测试通过: 正确检测到空提示词"
             else
               echo "❌ 测试失败: 应该检测到空提示词"
+              exit 1
+            fi
+          elif [ "${{ inputs.test_scenario }}" = "case_insensitive_trigger" ]; then
+            # 测试大小写不敏感
+            if [ "$is_empty" = "false" ] && [ -n "$prompt" ]; then
+              echo "✅ 测试通过: 大小写不敏感触发成功，提取提示词: $prompt"
+            else
+              echo "❌ 测试失败: 大小写不敏感触发失败"
               exit 1
             fi
           else

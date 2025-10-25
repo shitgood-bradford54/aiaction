@@ -32,6 +32,7 @@
 | 场景 5: PR 评论提取 Issue | ⏳ | | | |
 | 场景 6: Claude 交互检测 | ⏳ | | | |
 | 场景 7: 无代码变更 | ⏳ | | | |
+| 场景 8: 大小写不敏感触发 | ⏳ | | | |
 
 状态图例: ⏳待测试 | ✅通过 | ❌失败 | ⏭️跳过
 
@@ -352,6 +353,92 @@ git status --porcelain  # 应该为空
 
 ---
 
+### 场景 8: 大小写不敏感触发 (P0)
+
+**目标**: 验证 @ccai 触发词的大小写不敏感性
+
+**步骤**:
+
+1. **创建测试 Issue**
+   ```
+   标题: [Test] Case-insensitive trigger
+   描述: Testing trigger word case insensitivity
+   ```
+
+2. **测试不同大小写变体的触发词**:
+
+   测试用例 1 - 全大写:
+   ```
+   @CCAI implement a simple hello world endpoint
+   ```
+
+   测试用例 2 - 首字母大写:
+   ```
+   @Ccai add unit tests
+   ```
+
+   测试用例 3 - 混合大小写:
+   ```
+   @CcAi add documentation
+   ```
+
+   测试用例 4 - 标准小写（对照组）:
+   ```
+   @ccai add E2E tests
+   ```
+
+3. **验证点**:
+   - ✅ 所有大小写变体都能触发工作流
+   - ✅ `@CCAI` 触发成功
+   - ✅ `@Ccai` 触发成功
+   - ✅ `@CcAi` 触发成功
+   - ✅ `@ccai` 触发成功（基准）
+   - ✅ 提示词正确提取（不包含触发词本身）
+   - ✅ 工作流正常执行
+   - ✅ 创建 PR 或更新现有 PR
+
+4. **预期行为**:
+   - 所有大小写变体表现一致
+   - 提取的提示词不包含 `@ccai` 部分
+   - 大小写不影响后续工作流逻辑
+
+5. **验证命令**:
+   ```bash
+   # 检查工作流触发记录
+   gh run list --workflow=ccai-trigger.yml --limit 10
+
+   # 验证提示词提取
+   gh run view <run-id> --log | grep -i "extracted prompt"
+   ```
+
+**测试矩阵**:
+
+| 触发词 | 是否触发 | 提示词正确 | PR 创建 | 备注 |
+|--------|----------|------------|---------|------|
+| @ccai  | ✅ | ✅ | ✅ | 标准形式 |
+| @CCAI  | ✅ | ✅ | ✅ | 全大写 |
+| @Ccai  | ✅ | ✅ | ✅ | 首字母大写 |
+| @CcAi  | ✅ | ✅ | ✅ | 混合大小写 |
+| @cCaI  | ✅ | ✅ | ✅ | 混合大小写 |
+
+**代码验证**:
+
+检查实现是否使用了大小写不敏感匹配：
+
+```bash
+# 检查 ccai-trigger.yml
+grep -n "toLower\|/i" .github/workflows/ccai-trigger.yml
+
+# 检查 ccai.yml
+grep -n "toLower\|/i" .github/workflows/ccai.yml
+```
+
+预期输出应包含：
+- `toLower(github.event.comment.body)` - GitHub Actions 表达式
+- `/^@ccai\s+/i` - JavaScript 正则表达式（i 标志表示大小写不敏感）
+
+---
+
 ## 📊 测试结果总结
 
 ### 完成测试后填写
@@ -369,9 +456,9 @@ git status --porcelain  # 应该为空
 
 | 优先级 | 场景数 | 通过 | 失败 | 跳过 |
 |--------|--------|------|------|------|
-| P0 | 5 | | | |
+| P0 | 6 | | | |
 | P1 | 2 | | | |
-| **总计** | **7** | | | |
+| **总计** | **8** | | | |
 
 **成功率**: _____ %
 

@@ -21,8 +21,8 @@ jobs:
     name: Validate & Extract Parameters
     runs-on: ubuntu-latest
 
-    # 仅在评论以 @ccai 开头时触发
-    if: startsWith(github.event.comment.body, '@ccai')
+    # 仅在评论以 @ccai 开头时触发（大小写不敏感）
+    if: startsWith(toLower(github.event.comment.body), '@ccai')
 
     outputs:
       should_proceed: ${{ steps.validate.outputs.should_proceed }}
@@ -119,7 +119,8 @@ jobs:
         with:
           script: |
             const commentBody = context.payload.comment.body;
-            const prompt = commentBody.replace(/^@ccai\s+/, '').trim();
+            // 大小写不敏感地移除 @ccai 前缀
+            const prompt = commentBody.replace(/^@ccai\s+/i, '').trim();
 
             if (!prompt) {
               await github.rest.issues.createComment({

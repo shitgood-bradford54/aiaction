@@ -127,6 +127,7 @@ gh run watch
 - `issue_comment` - Issue 评论 ID 提取
 - `pr_comment` - PR 评论 ID 提取
 - `empty_prompt` - 空提示词检测
+- `case_insensitive_trigger` - 大小写不敏感触发测试
 
 **执行工作流测试**:
 - `branch_creation` - 创建新分支
@@ -169,9 +170,18 @@ for test in .github/tests/unit/test-*.sh; do bash "$test"; done
 
 ```bash
 # 触发器工作流测试
-for scenario in permission_granted permission_denied issue_comment pr_comment; do
+for scenario in permission_granted permission_denied issue_comment pr_comment case_insensitive_trigger; do
   gh workflow run test-trigger-workflow.yml -f test_scenario=$scenario
 done
+
+# 测试大小写不敏感触发（使用不同的评论内容）
+gh workflow run test-trigger-workflow.yml \
+  -f test_scenario=case_insensitive_trigger \
+  -f comment_body="@CCAI implement health check"
+
+gh workflow run test-trigger-workflow.yml \
+  -f test_scenario=case_insensitive_trigger \
+  -f comment_body="@Ccai add unit tests"
 
 # 执行工作流测试
 for scenario in branch_creation env_setup change_detection interaction_detection; do
