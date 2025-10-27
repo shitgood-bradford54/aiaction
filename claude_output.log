@@ -1,14 +1,13 @@
-Hi! I'm Claude Code, ready to help you with your NestJS project. 
+Hi! I'm Claude Code, ready to help you with your NestJS backend project. 
 
-I can see you're working on a NestJS backend with Prisma and Redis. The project has a nice DX CLI setup and follows a modular architecture with global services.
+I can see you're working on a NestJS application with Prisma and Redis. The codebase has a nice modular architecture with global services and a unified `dx` CLI tool for managing development tasks.
 
 How can I help you today? I can assist with:
 - Adding new features or modules
-- Database schema changes and migrations
-- API endpoint development
-- Bug fixes
-- Code refactoring
+- Debugging issues
+- Database migrations
 - Testing
-- Or anything else related to your codebase
+- Code refactoring
+- Or any other development tasks
 
 What would you like to work on?
