@@ -2,13 +2,14 @@
 # ==========================================
 # 环境配置文件生成脚本
 # 功能: 创建 .env.development.local
-# 输入: $1 = ANTHROPIC_API_KEY
+# 输入: $1 = ANTHROPIC_API_KEY, $2 = ANTHROPIC_BASE_URL (optional)
 # 输出: .env.development.local 文件
 # ==========================================
 
 set -euo pipefail
 
 ANTHROPIC_API_KEY="$1"
+ANTHROPIC_BASE_URL="${2:-}"
 
 # 验证参数
 if [ -z "$ANTHROPIC_API_KEY" ]; then
@@ -41,13 +42,21 @@ REDIS_DB=0
 # Logging
 LOG_LEVEL=debug
 
-# Anthropic API Key (from GitHub Secrets)
+# Anthropic API Configuration (from GitHub Secrets)
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 EOF
+
+# 如果提供了 ANTHROPIC_BASE_URL，则添加到配置文件
+if [ -n "$ANTHROPIC_BASE_URL" ]; then
+  echo "ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}" >> .env.development.local
+fi
 
 echo "✅ Environment file created: .env.development.local"
 
 # 显示内容 (隐藏敏感信息)
-echo "📄 File contents (API key hidden):"
-cat .env.development.local | grep -v "ANTHROPIC_API_KEY"
+echo "📄 File contents (sensitive info hidden):"
+cat .env.development.local | grep -v "ANTHROPIC_API_KEY" | grep -v "ANTHROPIC_BASE_URL"
 echo "ANTHROPIC_API_KEY=***REDACTED***"
+if [ -n "$ANTHROPIC_BASE_URL" ]; then
+  echo "ANTHROPIC_BASE_URL=***REDACTED***"
+fi

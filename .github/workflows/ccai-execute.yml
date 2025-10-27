@@ -20,6 +20,9 @@ on:
       ANTHROPIC_API_KEY:
         description: 'Anthropic API Key for Claude Code'
         required: true
+      ANTHROPIC_BASE_URL:
+        description: 'Anthropic API Base URL (optional, for third-party proxies)'
+        required: false
       PAT_TOKEN:
         description: 'Personal Access Token with pull_requests:write permission'
         required: false
@@ -138,7 +141,7 @@ jobs:
       # ==========================================
       - name: Create environment file
         run: |
-          bash .github/scripts/ccai/setup-env.sh "${{ secrets.ANTHROPIC_API_KEY }}"
+          bash .github/scripts/ccai/setup-env.sh "${{ secrets.ANTHROPIC_API_KEY }}" "${{ secrets.ANTHROPIC_BASE_URL }}"
 
       # ==========================================
       # 步骤 6: 安装 Claude Code CLI
@@ -155,6 +158,7 @@ jobs:
         id: run-claude
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
         run: |
           bash .github/scripts/ccai/run-claude.sh "${{ inputs.prompt }}"
 
