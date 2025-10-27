@@ -1,10 +1,11 @@
-Hi! I'm Claude Code, ready to help you with your NestJS backend project. I can assist with:
+Hi! I'm Claude Code, ready to help you with software engineering tasks in this NestJS/Prisma project.
 
-- Building and running your application
-- Database operations (Prisma migrations, seeding, etc.)
+I can assist you with:
+- Building and running the application (development, debug, or production)
+- Database operations (migrations, seeding, Prisma Studio)
 - Writing and testing code
-- Managing environment configurations
-- Code quality checks
-- And more
+- Code quality checks (linting, formatting)
+- Environment setup and validation
+- General NestJS/Prisma questions
 
-What would you like to work on today?
+What would you like to work on?
