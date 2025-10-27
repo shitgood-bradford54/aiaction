@@ -1,1 +1,12 @@
-Invalid API key · Please run /login
+Hi! I'm Claude Code, here to help you with software engineering tasks in this NestJS project.
+
+I can assist you with:
+- Adding new features or endpoints
+- Fixing bugs
+- Database migrations with Prisma
+- Redis cache implementation
+- Running tests
+- Code refactoring
+- And more!
+
+What would you like to work on today?
