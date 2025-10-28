@@ -36,5 +36,7 @@ lerna-debug.log*
 *.swp
 *.swo
 
+claude_output.log
+
 # Prisma
 prisma/migrations
