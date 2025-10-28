@@ -1,1 +1,12 @@
-Hi! I'm Claude, ready to help you with this NestJS project. How can I assist you today?
+Hi! I'm Claude Code, ready to help you with your NestJS Prisma backend project.
+
+I can assist you with:
+- Development tasks (building, running, testing)
+- Database operations (migrations, schema changes, Prisma queries)
+- Adding new features or modules
+- Code refactoring and debugging
+- Redis caching implementation
+- API documentation and validation
+- Environment configuration
+
+What would you like to work on today?
