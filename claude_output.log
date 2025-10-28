@@ -1,11 +1,13 @@
-Hi! I'm here to help you with this NestJS + Prisma + Redis project. 
+Hi! I'm Claude, here to help you with your NestJS backend project.
 
-What would you like to work on today? I can help you with:
+I can see you're working in a NestJS application with Prisma and Redis. The project has a nice DX CLI tool (`./scripts/dx`) for managing various development tasks, and you're currently on the `issue_7` branch.
+
+Is there something specific you'd like help with? I can assist with:
 - Adding new features or modules
-- Database schema changes
-- Redis caching implementation
+- Debugging issues
+- Database migrations
+- Code refactoring
 - Testing
-- Bug fixes
-- Or anything else related to the codebase
+- Or anything else related to your project
 
-Just let me know what you need!
+What would you like to work on?
