@@ -160,7 +160,17 @@ jobs:
           claude --version
 
       # ==========================================
-      # 步骤 8: 执行 Claude Code 任务
+      # 步骤 7.5: 初始化数据库（生成 Prisma Client + 重置数据库）
+      # ==========================================
+      - name: Initialize database
+        run: |
+          chmod +x scripts/dx
+          ./scripts/dx startup -Y --dev
+        env:
+          NODE_ENV: development        
+
+      # ==========================================
+      # 步骤 9: 执行 Claude Code 任务
       # ==========================================
       - name: Run Claude Code
         id: run-claude
@@ -172,7 +182,7 @@ jobs:
           bash .github/scripts/ccai/run-claude.sh "${{ inputs.prompt }}"
 
       # ==========================================
-      # 步骤 9: 读取 Claude 输出并保存到变量（不创建新评论）
+      # 步骤 10: 读取 Claude 输出并保存到变量（不创建新评论）
       # ==========================================
       - name: Read Claude output
         if: always() && steps.run-claude.outcome != 'skipped'
@@ -189,7 +199,7 @@ jobs:
           fi
 
       # ==========================================
-      # 步骤 10: 处理 Claude 交互请求
+      # 步骤 11: 处理 Claude 交互请求
       # ==========================================
       - name: Handle Claude interaction
         if: steps.run-claude.outputs.interaction_detected == 'true'
@@ -208,7 +218,7 @@ jobs:
             });
 
       # ==========================================
-      # 步骤 11: 检查 Git 变更
+      # 步骤 12: 检查 Git 变更
       # ==========================================
       - name: Check for changes
         id: check-changes
@@ -223,7 +233,7 @@ jobs:
           fi
 
       # ==========================================
-      # 步骤 12: 提交并推送变更到 issue 分支
+      # 步骤 13: 提交并推送变更到 issue 分支
       # ==========================================
       - name: Commit and push changes
         if: steps.check-changes.outputs.has_changes == 'true'
@@ -239,7 +249,7 @@ jobs:
           echo "✅ Changes committed and pushed to branch: $BRANCH_NAME"
 
       # ==========================================
-      # 步骤 13: 更新评论（只显示 Claude 输出）
+      # 步骤 14: 更新评论（只显示 Claude 输出）
       # ==========================================
       - name: Update comment with Claude output
         if: always() && steps.read-output.outputs.has_output == 'true'

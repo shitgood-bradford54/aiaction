@@ -135,10 +135,6 @@
     "dev": {
       "steps": [
         {
-          "name": "安装依赖",
-          "command": "pnpm install"
-        },
-        {
           "name": "生成 Prisma Client",
           "command": "pnpm run prisma:generate"
         },
@@ -148,7 +144,7 @@
         }
       ],
       "dangerous": true,
-      "description": "初始化项目(安装依赖、生成 Prisma Client、重置数据库)"
+      "description": "初始化项目(生成 Prisma Client、重置数据库)"
     }
   }
 }

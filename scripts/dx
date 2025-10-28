@@ -315,7 +315,7 @@ class DxCli {
 
   async handleStartup(args) {
     const environment = envManager.detectEnvironment(this.flags)
-    const envKey = environment === 'production' ? 'prod' : 'dev'
+    const envKey = 'dev' // 始终使用 dev 配置
 
     const startupConfig = this.commands.startup[envKey]
     if (!startupConfig) {
