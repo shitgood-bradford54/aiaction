@@ -22,7 +22,7 @@ echo "📋 Prompt: $PROMPT"
 
 # 执行 Claude Code (允许失败,以便捕获退出码)
 set +e
-claude -p "$PROMPT" 2>&1 | tee "$LOG_FILE"
+claude -p "$PROMPT" --dangerously-skip-permissions 2>&1 | tee "$LOG_FILE"
 CLAUDE_EXIT_CODE=$?
 set -e
 
