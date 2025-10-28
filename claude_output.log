@@ -1,13 +1,1 @@
-Hi! I'm Claude Code, ready to help you with software engineering tasks in this NestJS project.
-
-I can see you're working on a NestJS backend application with Prisma (PostgreSQL) and Redis. The project is currently on the `issue_5` branch with some modified files.
-
-How can I help you today? I can assist with:
-- Building features or fixing bugs
-- Database migrations and schema changes
-- Testing and debugging
-- Code refactoring
-- Explaining code structure
-- Or anything else related to this codebase
-
-What would you like to work on?
+Hi! I'm here to help you with your NestJS/Prisma backend project. How can I assist you today?
