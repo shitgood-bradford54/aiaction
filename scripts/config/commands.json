@@ -130,5 +130,25 @@
       "dangerous": true,
       "description": "重新安装依赖"
     }
+  },
+  "startup": {
+    "dev": {
+      "steps": [
+        {
+          "name": "安装依赖",
+          "command": "pnpm install"
+        },
+        {
+          "name": "生成 Prisma Client",
+          "command": "pnpm run prisma:generate"
+        },
+        {
+          "name": "重置数据库并填充种子数据",
+          "command": "pnpm exec prisma migrate reset --force"
+        }
+      ],
+      "dangerous": true,
+      "description": "初始化项目(安装依赖、生成 Prisma Client、重置数据库)"
+    }
   }
 }

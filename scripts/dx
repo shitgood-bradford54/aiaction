@@ -4,6 +4,7 @@
  * DX CLI - NestJS 项目统一管理工具
  *
  * 用法:
+ *   dx startup [环境标志]          - 项目初始化(安装依赖/生成Client/重置数据库)
  *   dx start [service] [环境标志]  - 启动服务
  *   dx build [环境标志]            - 构建应用
  *   dx db [action] [环境标志]      - 数据库操作
@@ -149,6 +150,9 @@ class DxCli {
         break
       case 'clean':
         await this.handleClean(subArgs)
+        break
+      case 'startup':
+        await this.handleStartup(subArgs)
         break
       default:
         logger.error(`未知命令: ${command}`)
@@ -309,6 +313,57 @@ class DxCli {
     await this.executeCommand(cleanConfig)
   }
 
+  async handleStartup(args) {
+    const environment = envManager.detectEnvironment(this.flags)
+    const envKey = environment === 'production' ? 'prod' : 'dev'
+
+    const startupConfig = this.commands.startup[envKey]
+    if (!startupConfig) {
+      logger.error(`未找到启动配置: ${envKey}`)
+      process.exit(1)
+      return
+    }
+
+    logger.step(`项目初始化 (${environment})`)
+
+    // 危险操作确认
+    if (startupConfig.dangerous) {
+      const confirmed = await confirmManager.confirmDangerous(
+        '项目初始化（会重置数据库）',
+        envManager.getEnvironmentDescription(environment),
+        this.flags.Y
+      )
+
+      if (!confirmed) {
+        logger.info('操作已取消')
+        return
+      }
+    }
+
+    // 执行步骤配置
+    if (startupConfig.steps && Array.isArray(startupConfig.steps)) {
+      for (let i = 0; i < startupConfig.steps.length; i++) {
+        const step = startupConfig.steps[i]
+        logger.step(`[${i + 1}/${startupConfig.steps.length}] ${step.name}`)
+        
+        try {
+          await execManager.executeCommand(step.command, {
+            flags: this.flags,
+          })
+          logger.success(`${step.name} 完成`)
+        } catch (error) {
+          logger.error(`${step.name} 失败`)
+          throw error
+        }
+      }
+
+      logger.success('🎉 项目初始化完成！')
+    } else {
+      // 兼容单个命令配置
+      await this.executeCommand(startupConfig)
+    }
+  }
+
   async executeCommand(config) {
     if (!config || !config.command) {
       logger.error('无效的命令配置')
@@ -331,6 +386,9 @@ DX CLI - NestJS 项目统一管理工具
   dx <命令> [选项] [参数...]
 
 命令:
+  startup                   项目初始化
+                            自动执行: 安装依赖 -> 生成 Prisma Client -> 重置数据库
+
   start [service]           启动服务
     service: dev, debug, prod (默认: dev)
 
@@ -361,6 +419,8 @@ DX CLI - NestJS 项目统一管理工具
   -h, --help                显示帮助信息
 
 示例:
+  dx startup --dev          初始化项目(首次运行推荐)
+  dx startup --dev -Y       初始化项目(跳过确认)
   dx start dev              启动开发服务器
   dx build --prod           构建生产版本
   dx db migrate --dev       执行开发环境数据库迁移
