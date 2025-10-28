@@ -163,57 +163,21 @@ jobs:
           bash .github/scripts/ccai/run-claude.sh "${{ inputs.prompt }}"
 
       # ==========================================
-      # 步骤 8: 反馈 Claude 输出到 Issue
+      # 步骤 8: 读取 Claude 输出并保存到变量（不创建新评论）
       # ==========================================
-      - name: Post Claude output to Issue
+      - name: Read Claude output
         if: always() && steps.run-claude.outcome != 'skipped'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const issueNumber = ${{ inputs.issue_number }};
-            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
-            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-            
-            // 读取 Claude 输出日志文件
-            let claudeOutput = '';
-            try {
-              claudeOutput = fs.readFileSync('claude_output.log', 'utf8');
-            } catch (error) {
-              claudeOutput = '⚠️ 无法读取 Claude 输出日志文件';
-              console.error('读取日志文件失败:', error);
-            }
-            
-            // 限制输出长度，避免评论过长
-            const maxLength = 60000; // GitHub 评论限制约 65536 字符
-            let truncatedOutput = claudeOutput;
-            let wasTruncated = false;
-            
-            if (claudeOutput.length > maxLength) {
-              truncatedOutput = claudeOutput.substring(0, maxLength);
-              wasTruncated = true;
-            }
-            
-            const statusIcon = exitCode === '0' ? '✅' : '❌';
-            const statusText = exitCode === '0' ? '执行成功' : '执行失败';
-            
-            let body = `## 🤖 Claude Code 执行结果\n\n` +
-                      `**状态**: ${statusIcon} ${statusText} (退出码: ${exitCode})\n` +
-                      `**时间**: ${timestamp}\n\n` +
-                      `### 📋 执行输出\n\n` +
-                      `\`\`\`\n${truncatedOutput}\n\`\`\`\n`;
-            
-            if (wasTruncated) {
-              body += `\n\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*\n`;
-            }
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: body
-            });
+        id: read-output
+        run: |
+          if [ -f claude_output.log ]; then
+            # 使用 base64 编码避免特殊字符问题
+            CLAUDE_OUTPUT=$(cat claude_output.log | base64 -w 0 2>/dev/null || cat claude_output.log | base64)
+            echo "claude_output_base64=$CLAUDE_OUTPUT" >> $GITHUB_OUTPUT
+            echo "has_output=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_output=false" >> $GITHUB_OUTPUT
+            echo "⚠️ claude_output.log 文件不存在"
+          fi
 
       # ==========================================
       # 步骤 9: 处理 Claude 交互请求
@@ -412,7 +376,7 @@ jobs:
             return prUrl;
 
       # ==========================================
-      # 步骤 14: 更新成功评论
+      # 步骤 14: 更新成功评论（包含 Claude 输出）
       # ==========================================
       - name: Update comment on success
         if: success() && steps.create-pr.outputs.pr_url
@@ -423,19 +387,54 @@ jobs:
             const commentId = ${{ inputs.comment_id }};
             const prUrl = '${{ steps.create-pr.outputs.pr_url }}';
             const prompt = `${{ inputs.prompt }}`;
+            const hasOutput = '${{ steps.read-output.outputs.has_output }}' === 'true';
+            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
+            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
+            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            let body = '✅ **任务完成!**\n\n' +
+                      '📋 **原始请求**: ' + prompt + '\n' +
+                      '🔗 **Pull Request**: ' + prUrl + '\n\n' +
+                      '请查看 PR 并进行代码审查。\n\n';
+            
+            // 添加 Claude 输出
+            if (hasOutput && claudeOutputBase64) {
+              try {
+                const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
+                const maxLength = 30000; // 为其他内容预留空间
+                let truncatedOutput = claudeOutput;
+                let wasTruncated = false;
+                
+                if (claudeOutput.length > maxLength) {
+                  truncatedOutput = claudeOutput.substring(0, maxLength);
+                  wasTruncated = true;
+                }
+                
+                body += '---\n\n## 🤖 Claude Code 执行结果\n\n' +
+                       `**状态**: ✅ 执行成功 (退出码: ${exitCode})\n` +
+                       `**时间**: ${timestamp}\n\n` +
+                       '### 📋 执行输出\n\n' +
+                       '```\n' + truncatedOutput + '\n```\n';
+                
+                if (wasTruncated) {
+                  body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
+                }
+              } catch (error) {
+                body += '---\n\n⚠️ 无法解析 Claude 输出日志\n';
+                console.error('解析 Claude 输出失败:', error);
+              }
+            }
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: '✅ **任务完成!**\n\n' +
-                    '📋 **原始请求**: ' + prompt + '\n\n' +
-                    '🔗 **Pull Request**: ' + prUrl + '\n\n' +
-                    '请查看 PR 并进行代码审查。'
+              body: body
             });
 
       # ==========================================
-      # 步骤 15: 更新失败评论
+      # 步骤 15: 更新失败评论（包含 Claude 输出）
       # ==========================================
       - name: Update comment on failure
         if: failure()
@@ -445,20 +444,54 @@ jobs:
           script: |
             const commentId = ${{ inputs.comment_id }};
             const prompt = `${{ inputs.prompt }}`;
+            const hasOutput = '${{ steps.read-output.outputs.has_output }}' === 'true';
+            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
+            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
+            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            let body = '❌ **任务失败**\n\n' +
+                      '📋 **原始请求**: ' + prompt + '\n' +
+                      '🔍 **查看详细日志**: [GitHub Actions 运行记录](' + runUrl + ')\n\n' +
+                      '请检查错误信息并重试。\n\n';
+            
+            // 添加 Claude 输出
+            if (hasOutput && claudeOutputBase64) {
+              try {
+                const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
+                const maxLength = 30000; // 为其他内容预留空间
+                let truncatedOutput = claudeOutput;
+                let wasTruncated = false;
+                
+                if (claudeOutput.length > maxLength) {
+                  truncatedOutput = claudeOutput.substring(0, maxLength);
+                  wasTruncated = true;
+                }
+                
+                body += '---\n\n## 🤖 Claude Code 执行结果\n\n' +
+                       `**状态**: ❌ 执行失败 (退出码: ${exitCode})\n` +
+                       `**时间**: ${timestamp}\n\n` +
+                       '### 📋 执行输出\n\n' +
+                       '```\n' + truncatedOutput + '\n```\n';
+                
+                if (wasTruncated) {
+                  body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
+                }
+              } catch (error) {
+                body += '---\n\n⚠️ 无法解析 Claude 输出日志\n';
+                console.error('解析 Claude 输出失败:', error);
+              }
+            }
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: '❌ **任务失败**\n\n' +
-                    '📋 **原始请求**: ' + prompt + '\n\n' +
-                    '🔍 **查看详细日志**: [GitHub Actions 运行记录](' + runUrl + ')\n\n' +
-                    '请检查错误信息并重试。'
+              body: body
             });
 
       # ==========================================
-      # 步骤 16: 更新无变更评论
+      # 步骤 16: 更新无变更评论（包含 Claude 输出）
       # ==========================================
       - name: Update comment on no changes
         if: success() && steps.check-changes.outputs.has_changes == 'false'
@@ -468,12 +501,47 @@ jobs:
           script: |
             const commentId = ${{ inputs.comment_id }};
             const prompt = `${{ inputs.prompt }}`;
+            const hasOutput = '${{ steps.read-output.outputs.has_output }}' === 'true';
+            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
+            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
+            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            let body = '⚠️ **任务完成,但未检测到代码变更**\n\n' +
+                      '📋 **原始请求**: ' + prompt + '\n\n' +
+                      'Claude Code 执行完成,但未生成任何代码变更。请检查任务是否需要代码修改。\n\n';
+            
+            // 添加 Claude 输出
+            if (hasOutput && claudeOutputBase64) {
+              try {
+                const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
+                const maxLength = 30000; // 为其他内容预留空间
+                let truncatedOutput = claudeOutput;
+                let wasTruncated = false;
+                
+                if (claudeOutput.length > maxLength) {
+                  truncatedOutput = claudeOutput.substring(0, maxLength);
+                  wasTruncated = true;
+                }
+                
+                body += '---\n\n## 🤖 Claude Code 执行结果\n\n' +
+                       `**状态**: ⚠️ 执行完成 (退出码: ${exitCode})\n` +
+                       `**时间**: ${timestamp}\n\n` +
+                       '### 📋 执行输出\n\n' +
+                       '```\n' + truncatedOutput + '\n```\n';
+                
+                if (wasTruncated) {
+                  body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
+                }
+              } catch (error) {
+                body += '---\n\n⚠️ 无法解析 Claude 输出日志\n';
+                console.error('解析 Claude 输出失败:', error);
+              }
+            }
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: '⚠️ **任务完成,但未检测到代码变更**\n\n' +
-                    '📋 **原始请求**: ' + prompt + '\n\n' +
-                    'Claude Code 执行完成,但未生成任何代码变更。请检查任务是否需要代码修改。'
+              body: body
             });
