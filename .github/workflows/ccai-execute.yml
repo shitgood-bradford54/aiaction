@@ -149,9 +149,11 @@ jobs:
           if [ -f pnpm-lock.yaml ]; then
             echo "✅ pnpm-lock.yaml found"
             cat pnpm-lock.yaml | head -20
+            echo "📦 Installing with frozen lockfile"
+            pnpm install --frozen-lockfile || pnpm install
           else
             echo "❌ pnpm-lock.yaml not found"
-            echo "📋 Installing without frozen lockfile"
+            echo "📦 Installing without frozen lockfile"
             pnpm install
           fi
 
