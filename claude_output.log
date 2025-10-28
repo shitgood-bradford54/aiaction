@@ -1,12 +1,11 @@
-Hi! I'm Claude, ready to help you with this NestJS project. 
+Hi! I'm here to help you with this NestJS + Prisma + Redis project. 
 
-Is there something specific you'd like me to help you with? I can assist with:
+What would you like to work on today? I can help you with:
 - Adding new features or modules
 - Database schema changes
-- Debugging issues
-- Setting up the development environment
-- Code refactoring
-- Writing tests
-- Or anything else related to this codebase
+- Redis caching implementation
+- Testing
+- Bug fixes
+- Or anything else related to the codebase
 
-What would you like to work on?
+Just let me know what you need!
