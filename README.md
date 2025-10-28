@@ -41,7 +41,7 @@
 ### 1. 安装依赖
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. 配置环境变量
@@ -162,18 +162,18 @@ http://localhost:3000/api
 > 查看 `NPM_SCRIPTS.md` 了解为什么。
 
 <details>
-<summary>点击查看传统 npm scripts (仅供参考)</summary>
+<summary>点击查看传统 pnpm scripts (仅供参考)</summary>
 
-- `npm run build` - 编译项目
-- `npm run start` - 启动应用
-- `npm run start:dev` - 开发模式(热重载)
-- `npm run start:prod` - 生产模式
-- `npm run lint` - 代码检查
-- `npm run format` - 代码格式化
-- `npm run test` - 运行测试
-- `npm run prisma:generate` - 生成 Prisma Client
-- `npm run prisma:migrate` - 运行数据库迁移
-- `npm run prisma:studio` - 打开 Prisma Studio
+- `pnpm run build` - 编译项目
+- `pnpm run start` - 启动应用
+- `pnpm run start:dev` - 开发模式(热重载)
+- `pnpm run start:prod` - 生产模式
+- `pnpm run lint` - 代码检查
+- `pnpm run format` - 代码格式化
+- `pnpm run test` - 运行测试
+- `pnpm run prisma:generate` - 生成 Prisma Client
+- `pnpm run prisma:migrate` - 运行数据库迁移
+- `pnpm run prisma:studio` - 打开 Prisma Studio
 
 </details>
 

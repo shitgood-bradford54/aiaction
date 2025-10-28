@@ -40,13 +40,13 @@ Claude Code 已根据 Issue #123 的需求自动生成代码变更。
 
 ```bash
 # 运行单元测试
-npm run test -- health.controller.spec.ts
+pnpm run test -- health.controller.spec.ts
 
 # 运行 E2E 测试
-npm run test:e2e -- health.e2e-spec.ts
+pnpm run test:e2e -- health.e2e-spec.ts
 
 # 查看覆盖率
-npm run test:cov
+pnpm run test:cov
 ```
 
 ---

@@ -50,7 +50,7 @@ Tests:       7 passed, 7 total
 1. **环境变量配置**
    ```bash
    # 创建 E2E 环境变量文件
-   npm run env:setup:e2e
+   pnpm run env:setup:e2e
 
    # 或手动创建
    cp .env.example .env.e2e.local
@@ -87,7 +87,7 @@ Tests:       7 passed, 7 total
 
 3. **运行 Prisma 迁移**
    ```bash
-   NODE_ENV=e2e npm run prisma:migrate
+   NODE_ENV=e2e pnpm run prisma:migrate
    ```
 
 ### 对于 Redis 测试
@@ -140,23 +140,23 @@ Checking services...
 ### 2. 验证环境变量
 
 ```bash
-npm run env:validate
+pnpm run env:validate
 ```
 
 ### 3. 运行测试
 
 ```bash
 # 运行所有 E2E 测试
-npm run test:e2e
+pnpm run test:e2e
 
 # 运行单个测试文件
-NODE_ENV=e2e npx jest --config ./test/jest-e2e.json test/config.e2e-spec.ts
+NODE_ENV=e2e pnpm exec jest --config ./test/jest-e2e.json test/config.e2e-spec.ts
 
 # 运行数据库测试（需要数据库）
-NODE_ENV=e2e npx jest --config ./test/jest-e2e.json test/database.e2e-spec.ts
+NODE_ENV=e2e pnpm exec jest --config ./test/jest-e2e.json test/database.e2e-spec.ts
 
 # 运行 Redis 测试（需要 Redis）
-NODE_ENV=e2e npx jest --config ./test/jest-e2e.json test/redis.e2e-spec.ts
+NODE_ENV=e2e pnpm exec jest --config ./test/jest-e2e.json test/redis.e2e-spec.ts
 ```
 
 ## 📝 测试详情
@@ -310,7 +310,7 @@ NODE_ENV=e2e npx jest --config ./test/jest-e2e.json test/redis.e2e-spec.ts
 2. **等待服务就绪**
    ```bash
    # 使用 wait-for-it.sh 或类似工具
-   ./scripts/wait-for-it.sh localhost:5432 -- npm run test:e2e
+   ./scripts/wait-for-it.sh localhost:5432 -- pnpm run test:e2e
    ```
 
 3. **清理测试数据**
@@ -332,7 +332,7 @@ brew services start postgresql
 brew services start redis
 
 # 运行测试
-npm run test:e2e
+pnpm run test:e2e
 ```
 
 ## 📚 相关文档

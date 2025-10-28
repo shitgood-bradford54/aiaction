@@ -62,7 +62,7 @@ if (!envFilePath) {
   console.error('Searched for:');
   envFiles.forEach(file => console.error(`  - ${file}`));
   console.error('');
-  console.error('Please run: npm run env:setup');
+  console.error('Please run: pnpm run env:setup');
   console.error('');
   process.exit(1);
 }

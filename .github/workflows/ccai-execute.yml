@@ -122,37 +122,45 @@ jobs:
           bash .github/scripts/ccai/setup-branch.sh "${{ inputs.issue_number }}"
 
       # ==========================================
-      # 步骤 3: 设置 Node.js
+      # 步骤 3: 安装 pnpm
+      # ==========================================
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      # ==========================================
+      # 步骤 4: 设置 Node.js
       # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
       # ==========================================
-      # 步骤 4: 安装依赖
+      # 步骤 5: 安装依赖
       # ==========================================
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
+        run: pnpm install --frozen-lockfile
 
       # ==========================================
-      # 步骤 5: 创建环境配置文件
+      # 步骤 6: 创建环境配置文件
       # ==========================================
       - name: Create environment file
         run: |
           bash .github/scripts/ccai/setup-env.sh "${{ secrets.ANTHROPIC_API_KEY }}" "${{ secrets.ANTHROPIC_BASE_URL }}" "${{ secrets.PAT_TOKEN }}"
 
       # ==========================================
-      # 步骤 6: 安装 Claude Code CLI
+      # 步骤 7: 安装 Claude Code CLI
       # ==========================================
       - name: Install Claude Code CLI
         run: |
-          npm install -g @anthropic-ai/claude-code
+          pnpm add -g @anthropic-ai/claude-code
           claude --version
 
       # ==========================================
-      # 步骤 7: 执行 Claude Code 任务
+      # 步骤 8: 执行 Claude Code 任务
       # ==========================================
       - name: Run Claude Code
         id: run-claude
@@ -164,7 +172,7 @@ jobs:
           bash .github/scripts/ccai/run-claude.sh "${{ inputs.prompt }}"
 
       # ==========================================
-      # 步骤 8: 读取 Claude 输出并保存到变量（不创建新评论）
+      # 步骤 9: 读取 Claude 输出并保存到变量（不创建新评论）
       # ==========================================
       - name: Read Claude output
         if: always() && steps.run-claude.outcome != 'skipped'
@@ -181,7 +189,7 @@ jobs:
           fi
 
       # ==========================================
-      # 步骤 9: 处理 Claude 交互请求
+      # 步骤 10: 处理 Claude 交互请求
       # ==========================================
       - name: Handle Claude interaction
         if: steps.run-claude.outputs.interaction_detected == 'true'
@@ -200,7 +208,7 @@ jobs:
             });
 
       # ==========================================
-      # 步骤 10: 检查 Git 变更
+      # 步骤 11: 检查 Git 变更
       # ==========================================
       - name: Check for changes
         id: check-changes
@@ -215,7 +223,7 @@ jobs:
           fi
 
       # ==========================================
-      # 步骤 11: 提交并推送变更到 issue 分支
+      # 步骤 12: 提交并推送变更到 issue 分支
       # ==========================================
       - name: Commit and push changes
         if: steps.check-changes.outputs.has_changes == 'true'
@@ -231,7 +239,7 @@ jobs:
           echo "✅ Changes committed and pushed to branch: $BRANCH_NAME"
 
       # ==========================================
-      # 步骤 12: 更新评论（只显示 Claude 输出）
+      # 步骤 13: 更新评论（只显示 Claude 输出）
       # ==========================================
       - name: Update comment with Claude output
         if: always() && steps.read-output.outputs.has_output == 'true'

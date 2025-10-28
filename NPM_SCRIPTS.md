@@ -1,11 +1,11 @@
-# NPM Scripts 使用规范
+# PNPM Scripts 使用规范
 
 ## ⚠️ 重要提示
 
 本项目已统一使用 **DX CLI** 作为命令管理工具。
 
 **推荐使用**: `./scripts/dx <command>`
-**不推荐**: 直接使用 `npm run <script>`
+**不推荐**: 直接使用 `pnpm run <script>`
 
 ## 为什么使用 DX CLI?
 
@@ -47,38 +47,38 @@
 
 以下命令是底层实现,由 DX CLI 内部调用,**不建议直接使用**:
 
-| NPM Script | 用途 | 为什么不建议直接用 |
+| PNPM Script | 用途 | 为什么不建议直接用 |
 |-----------|------|------------------|
-| `npm run build` | 构建 | 缺少环境变量管理 |
-| `npm run start:dev` | 启动开发 | 缺少端口冲突处理 |
-| `npm run start:debug` | 启动调试 | 缺少端口冲突处理 |
-| `npm run start:prod` | 启动生产 | 缺少环境验证 |
-| `npm run lint` | 代码检查 | 缺少统一日志 |
-| `npm run format` | 格式化 | 缺少统一日志 |
-| `npm run test` | 测试 | 缺少环境隔离 |
-| `npm run test:watch` | 监视测试 | 缺少环境隔离 |
-| `npm run test:cov` | 测试覆盖率 | 缺少环境隔离 |
-| `npm run test:e2e` | E2E测试 | 缺少环境隔离 |
-| `npm run prisma:*` | Prisma命令 | 缺少环境管理和确认 |
-| `npm run env:*` | 环境命令 | 缺少统一日志 |
+| `pnpm run build` | 构建 | 缺少环境变量管理 |
+| `pnpm run start:dev` | 启动开发 | 缺少端口冲突处理 |
+| `pnpm run start:debug` | 启动调试 | 缺少端口冲突处理 |
+| `pnpm run start:prod` | 启动生产 | 缺少环境验证 |
+| `pnpm run lint` | 代码检查 | 缺少统一日志 |
+| `pnpm run format` | 格式化 | 缺少统一日志 |
+| `pnpm run test` | 测试 | 缺少环境隔离 |
+| `pnpm run test:watch` | 监视测试 | 缺少环境隔离 |
+| `pnpm run test:cov` | 测试覆盖率 | 缺少环境隔离 |
+| `pnpm run test:e2e` | E2E测试 | 缺少环境隔离 |
+| `pnpm run prisma:*` | Prisma命令 | 缺少环境管理和确认 |
+| `pnpm run env:*` | 环境命令 | 缺少统一日志 |
 
 ## DX CLI 优势对比
 
-### 使用 npm run (❌ 不推荐)
+### 使用 pnpm run (❌ 不推荐)
 
 ```bash
 # 需要手动管理环境变量
-NODE_ENV=development npm run start:dev
+NODE_ENV=development pnpm run start:dev
 
 # 需要手动清理端口
 lsof -ti :3000 | xargs kill -9
-npm run start:dev
+pnpm run start:dev
 
 # 危险操作没有确认
-npm run prisma:migrate  # 可能误操作
+pnpm run prisma:migrate  # 可能误操作
 
 # 错误信息不友好
-npm run test  # 失败后难以定位问题
+pnpm run test  # 失败后难以定位问题
 ```
 
 ### 使用 DX CLI (✅ 推荐)
@@ -99,12 +99,12 @@ npm run test  # 失败后难以定位问题
 
 ## 特殊情况
 
-### 何时可以直接使用 npm scripts?
+### 何时可以直接使用 pnpm scripts?
 
 只在以下情况下可以考虑直接使用:
 
 1. **CI/CD 环境** - 但仍建议使用 DX CLI with `-Y` 标志
-2. **调试 npm 包问题** - 需要排查 npm 本身的问题
+2. **调试 pnpm 包问题** - 需要排查 pnpm 本身的问题
 3. **DX CLI 不可用** - 系统出现问题时的临时方案
 
 即使在这些情况下,也建议优先使用 DX CLI:
@@ -180,7 +180,7 @@ cat scripts/QUICKSTART.md
 
 ### ❌ DON'T (避免做法)
 
-- 不直接使用 `npm run` 命令
+- 不直接使用 `pnpm run` 命令
 - 不手动管理环境变量
 - 不手动清理端口
 - 不跳过危险操作确认 (除非在 CI 中)
@@ -191,10 +191,10 @@ cat scripts/QUICKSTART.md
 
 ```bash
 # 旧习惯 (❌)
-npm run start:dev
-npm run build
-npm run test
-npm run prisma:migrate
+pnpm run start:dev
+pnpm run build
+pnpm run test
+pnpm run prisma:migrate
 
 # 新习惯 (✅)
 ./scripts/dx start dev

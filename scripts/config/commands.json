@@ -1,117 +1,117 @@
 {
   "start": {
     "dev": {
-      "command": "NODE_ENV=development npm run start:dev",
+      "command": "NODE_ENV=development pnpm run start:dev",
       "ports": [3000],
       "description": "启动开发服务器"
     },
     "debug": {
-      "command": "NODE_ENV=development npm run start:debug",
+      "command": "NODE_ENV=development pnpm run start:debug",
       "ports": [3000],
       "description": "启动调试服务器"
     },
     "prod": {
-      "command": "NODE_ENV=production npm run start:prod",
+      "command": "NODE_ENV=production pnpm run start:prod",
       "ports": [3000],
       "description": "启动生产服务器"
     }
   },
   "build": {
     "dev": {
-      "command": "NODE_ENV=development npm run build",
+      "command": "NODE_ENV=development pnpm run build",
       "description": "构建应用(开发环境)"
     },
     "prod": {
-      "command": "NODE_ENV=production npm run build",
+      "command": "NODE_ENV=production pnpm run build",
       "description": "构建应用(生产环境)"
     }
   },
   "db": {
     "generate": {
-      "command": "npm run prisma:generate",
+      "command": "pnpm run prisma:generate",
       "description": "生成 Prisma Client"
     },
     "migrate": {
       "dev": {
-        "command": "npm run prisma:migrate",
+        "command": "pnpm run prisma:migrate",
         "description": "执行数据库迁移(开发环境)"
       },
       "prod": {
-        "command": "npx prisma migrate deploy",
+        "command": "pnpm exec prisma migrate deploy",
         "dangerous": true,
         "description": "执行数据库迁移(生产环境)"
       }
     },
     "reset": {
       "dev": {
-        "command": "npx prisma migrate reset --force",
+        "command": "pnpm exec prisma migrate reset --force",
         "dangerous": true,
         "description": "重置数据库(开发环境)"
       },
       "prod": {
-        "command": "npx prisma migrate reset",
+        "command": "pnpm exec prisma migrate reset",
         "dangerous": true,
         "description": "重置数据库(生产环境)"
       }
     },
     "studio": {
-      "command": "npm run prisma:studio",
+      "command": "pnpm run prisma:studio",
       "description": "打开 Prisma Studio"
     },
     "seed": {
       "dev": {
-        "command": "npx prisma db seed",
+        "command": "pnpm exec prisma db seed",
         "description": "执行数据库种子(开发环境)"
       }
     }
   },
   "test": {
     "unit": {
-      "command": "NODE_ENV=test npm run test",
+      "command": "NODE_ENV=test pnpm run test",
       "description": "运行单元测试"
     },
     "watch": {
-      "command": "NODE_ENV=test npm run test:watch",
+      "command": "NODE_ENV=test pnpm run test:watch",
       "description": "监视模式运行测试"
     },
     "cov": {
-      "command": "NODE_ENV=test npm run test:cov",
+      "command": "NODE_ENV=test pnpm run test:cov",
       "description": "运行测试并生成覆盖率报告"
     },
     "e2e": {
-      "command": "NODE_ENV=e2e npm run test:e2e",
+      "command": "NODE_ENV=e2e pnpm run test:e2e",
       "description": "运行 E2E 测试"
     }
   },
   "lint": {
-    "command": "npm run lint",
+    "command": "pnpm run lint",
     "description": "代码检查"
   },
   "format": {
-    "command": "npm run format",
+    "command": "pnpm run format",
     "description": "代码格式化"
   },
   "env": {
     "setup": {
       "dev": {
-        "command": "npm run env:setup:dev",
+        "command": "pnpm run env:setup:dev",
         "description": "设置开发环境"
       },
       "prod": {
-        "command": "npm run env:setup:prod",
+        "command": "pnpm run env:setup:prod",
         "description": "设置生产环境"
       },
       "test": {
-        "command": "npm run env:setup:test",
+        "command": "pnpm run env:setup:test",
         "description": "设置测试环境"
       },
       "e2e": {
-        "command": "npm run env:setup:e2e",
+        "command": "pnpm run env:setup:e2e",
         "description": "设置 E2E 环境"
       }
     },
     "validate": {
-      "command": "npm run env:validate",
+      "command": "pnpm run env:validate",
       "description": "验证环境变量"
     }
   },
@@ -126,7 +126,7 @@
       "description": "清理构建产物"
     },
     "deps": {
-      "command": "rm -rf node_modules && npm install",
+      "command": "rm -rf node_modules pnpm-lock.yaml && pnpm install",
       "dangerous": true,
       "description": "重新安装依赖"
     }

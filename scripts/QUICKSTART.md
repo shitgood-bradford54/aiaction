@@ -8,8 +8,8 @@
 # 查看帮助
 ./scripts/dx --help
 
-# 或通过 npm
-npm run dx -- --help
+# 或通过 pnpm
+pnpm run dx -- --help
 ```
 
 ### 2. 首次使用

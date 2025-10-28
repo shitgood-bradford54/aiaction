@@ -78,5 +78,5 @@ echo ""
 
 echo "========================================="
 echo "To run E2E tests:"
-echo "  npm run test:e2e"
+echo "  pnpm run test:e2e"
 echo "========================================="

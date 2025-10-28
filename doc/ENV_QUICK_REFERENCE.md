@@ -4,10 +4,10 @@
 
 ```bash
 # 新开发者初始化流程
-npm run env:setup              # 1. 创建环境变量文件
+pnpm run env:setup              # 1. 创建环境变量文件
 vim .env.development.local     # 2. 编辑配置（添加真实密码）
-npm run env:validate           # 3. 验证配置
-npm run start:dev              # 4. 启动开发服务器
+pnpm run env:validate           # 3. 验证配置
+pnpm run start:dev              # 4. 启动开发服务器
 ```
 
 ## 📁 文件结构
@@ -26,32 +26,32 @@ npm run start:dev              # 4. 启动开发服务器
     └── validate-env.js             # 环境验证脚本
 ```
 
-## 🔧 NPM 脚本
+## 🔧 PNPM 脚本
 
 ### 环境管理
 ```bash
-npm run env:setup              # 创建 .env.development.local
-npm run env:setup:dev          # 创建开发环境文件
-npm run env:setup:prod         # 创建生产环境文件
-npm run env:setup:test         # 创建测试环境文件
-npm run env:setup:e2e          # 创建 E2E 测试文件
-npm run env:validate           # 验证当前环境变量
+pnpm run env:setup              # 创建 .env.development.local
+pnpm run env:setup:dev          # 创建开发环境文件
+pnpm run env:setup:prod         # 创建生产环境文件
+pnpm run env:setup:test         # 创建测试环境文件
+pnpm run env:setup:e2e          # 创建 E2E 测试文件
+pnpm run env:validate           # 验证当前环境变量
 ```
 
 ### 开发与构建
 ```bash
-npm run start:dev              # 开发模式 (NODE_ENV=development)
-npm run start:debug            # 调试模式
-npm run start:prod             # 生产模式 (NODE_ENV=production)
-npm run build                  # 编译 TypeScript
+pnpm run start:dev              # 开发模式 (NODE_ENV=development)
+pnpm run start:debug            # 调试模式
+pnpm run start:prod             # 生产模式 (NODE_ENV=production)
+pnpm run build                  # 编译 TypeScript
 ```
 
 ### 测试
 ```bash
-npm run test                   # 单元测试 (NODE_ENV=test)
-npm run test:watch             # 监听模式
-npm run test:cov               # 测试覆盖率
-npm run test:e2e               # E2E 测试 (NODE_ENV=e2e)
+pnpm run test                   # 单元测试 (NODE_ENV=test)
+pnpm run test:watch             # 监听模式
+pnpm run test:cov               # 测试覆盖率
+pnpm run test:e2e               # E2E 测试 (NODE_ENV=e2e)
 ```
 
 ## 🔐 必需的环境变量
@@ -137,7 +137,7 @@ LOG_LEVEL=info
 
 ## ✅ 验证检查项
 
-运行 `npm run env:validate` 将检查：
+运行 `pnpm run env:validate` 将检查：
 
 - ✅ 必需变量是否存在
 - ✅ 推荐变量提醒
@@ -157,13 +157,13 @@ LOG_LEVEL=info
 ### 切换环境
 ```bash
 # 开发环境
-npm run start:dev
+pnpm run start:dev
 
 # 测试环境
-npm run test
+pnpm run test
 
 # 生产环境
-NODE_ENV=production npm run start:prod
+NODE_ENV=production pnpm run start:prod
 ```
 
 ### Docker 部署
@@ -182,7 +182,7 @@ docker run -e DATABASE_URL="..." -e REDIS_HOST="..." myapp
 rm .env.development.local
 
 # 重新初始化
-npm run env:setup
+pnpm run env:setup
 ```
 
 ## 📚 详细文档
@@ -199,7 +199,7 @@ npm run env:setup
 ls -la .env*
 
 # 2. 验证配置
-npm run env:validate
+pnpm run env:validate
 
 # 3. 检查变量是否正确加载
 NODE_ENV=development node -e "require('dotenv').config({path:'.env.development.local'}); console.log(process.env.DATABASE_URL)"
