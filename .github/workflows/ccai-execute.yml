@@ -310,3 +310,40 @@ jobs:
               body: body
             });
 
+      # ==========================================
+      # 步骤 15: 处理工作流失败情况
+      # ==========================================
+      - name: Handle workflow failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = ${{ inputs.comment_id }};
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            
+            // 获取工作流运行信息
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId
+            });
+            
+            const failureMessage = run.status === 'completed' && run.conclusion === 'failure' 
+              ? `❌ **工作流执行失败**\n\n` +
+                `**时间**: ${timestamp}\n\n` +
+                `工作流在某个步骤遇到错误。请查看 [Actions 运行日志](${runUrl}) 以获取详细信息。\n\n` +
+                `如果您遇到技术问题，请提供错误日志以便排查。`
+              : `⚠️ **工作流执行异常**\n\n` +
+                `**时间**: ${timestamp}\n\n` +
+                `工作流状态: ${run.status}${run.conclusion ? ` (${run.conclusion})` : ''}\n\n` +
+                `请查看 [Actions 运行日志](${runUrl})。`;
+            
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: failureMessage
+            });
+
