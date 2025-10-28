@@ -2,7 +2,7 @@
 # ==========================================
 # 环境配置文件生成脚本
 # 功能: 创建 .env.development.local
-# 输入: $1 = ANTHROPIC_API_KEY, $2 = ANTHROPIC_BASE_URL (optional)
+# 输入: $1 = ANTHROPIC_API_KEY, $2 = ANTHROPIC_BASE_URL (optional), $3 = PAT_TOKEN (optional)
 # 输出: .env.development.local 文件
 # ==========================================
 
@@ -10,6 +10,7 @@ set -euo pipefail
 
 ANTHROPIC_API_KEY="$1"
 ANTHROPIC_BASE_URL="${2:-}"
+PAT_TOKEN="${3:-}"
 
 # 验证参数
 if [ -z "$ANTHROPIC_API_KEY" ]; then
@@ -51,12 +52,20 @@ if [ -n "$ANTHROPIC_BASE_URL" ]; then
   echo "ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}" >> .env.development.local
 fi
 
+# 如果提供了 PAT_TOKEN，则添加 GITHUB_TOKEN 到配置文件（供 Claude Code agent 使用）
+if [ -n "$PAT_TOKEN" ]; then
+  echo "GITHUB_TOKEN=${PAT_TOKEN}" >> .env.development.local
+fi
+
 echo "✅ Environment file created: .env.development.local"
 
 # 显示内容 (隐藏敏感信息)
 echo "📄 File contents (sensitive info hidden):"
-cat .env.development.local | grep -v "ANTHROPIC_API_KEY" | grep -v "ANTHROPIC_BASE_URL"
+cat .env.development.local | grep -v "ANTHROPIC_API_KEY" | grep -v "ANTHROPIC_BASE_URL" | grep -v "GITHUB_TOKEN"
 echo "ANTHROPIC_API_KEY=***REDACTED***"
 if [ -n "$ANTHROPIC_BASE_URL" ]; then
   echo "ANTHROPIC_BASE_URL=***REDACTED***"
+fi
+if [ -n "$PAT_TOKEN" ]; then
+  echo "GITHUB_TOKEN=***REDACTED***"
 fi

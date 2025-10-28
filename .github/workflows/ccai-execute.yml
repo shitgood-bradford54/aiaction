@@ -24,7 +24,7 @@ on:
         description: 'Anthropic API Base URL (optional, for third-party proxies)'
         required: false
       PAT_TOKEN:
-        description: 'Personal Access Token with pull_requests:write permission'
+        description: 'Personal Access Token for Claude Code agent to create PR if needed'
         required: false
 
 jobs:
@@ -141,7 +141,7 @@ jobs:
       # ==========================================
       - name: Create environment file
         run: |
-          bash .github/scripts/ccai/setup-env.sh "${{ secrets.ANTHROPIC_API_KEY }}" "${{ secrets.ANTHROPIC_BASE_URL }}"
+          bash .github/scripts/ccai/setup-env.sh "${{ secrets.ANTHROPIC_API_KEY }}" "${{ secrets.ANTHROPIC_BASE_URL }}" "${{ secrets.PAT_TOKEN }}"
 
       # ==========================================
       # 步骤 6: 安装 Claude Code CLI
@@ -159,6 +159,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           bash .github/scripts/ccai/run-claude.sh "${{ inputs.prompt }}"
 
@@ -214,9 +215,9 @@ jobs:
           fi
 
       # ==========================================
-      # 步骤 11: 推送变更
+      # 步骤 11: 提交并推送变更到 issue 分支
       # ==========================================
-      - name: Push changes
+      - name: Commit and push changes
         if: steps.check-changes.outputs.has_changes == 'true'
         run: |
           BRANCH_NAME="issue_${{ inputs.issue_number }}"
@@ -227,203 +228,50 @@ jobs:
                      -m "Co-Authored-By: Claude <noreply@anthropic.com>" || true
           git push origin "$BRANCH_NAME"
 
-          echo "✅ Changes pushed to branch: $BRANCH_NAME"
+          echo "✅ Changes committed and pushed to branch: $BRANCH_NAME"
 
       # ==========================================
-      # 步骤 12: 检查 PAT Token 配置和权限
+      # 步骤 12: 更新评论（只显示 Claude 输出）
       # ==========================================
-      - name: Check PAT Token
-        if: steps.check-changes.outputs.has_changes == 'true' && steps.run-claude.outputs.exit_code == '0'
+      - name: Update comment with Claude output
+        if: always() && steps.read-output.outputs.has_output == 'true'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            console.log('🔍 Checking PAT Token configuration...');
+            const commentId = ${{ inputs.comment_id }};
+            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
+            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
+            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             
-            // 检查使用的是哪个 token
-            const usingPAT = '${{ secrets.PAT_TOKEN }}' !== '';
-            console.log(`Using PAT_TOKEN: ${usingPAT ? '✅ YES' : '❌ NO (falling back to GITHUB_TOKEN)'}`);
+            let body = '';
             
             try {
-              // 获取当前认证用户信息
-              const { data: user } = await github.rest.users.getAuthenticated();
-              console.log(`✅ Authenticated as: ${user.login} (${user.type})`);
+              const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
+              const maxLength = 60000; // GitHub 评论限制约 65536 字符
+              let truncatedOutput = claudeOutput;
+              let wasTruncated = false;
               
-              // 检查仓库权限
-              const { data: repo } = await github.rest.repos.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
-              console.log(`✅ Repository: ${repo.full_name}`);
-              console.log(`✅ Repository permissions:`);
-              console.log(`   - admin: ${repo.permissions?.admin || false}`);
-              console.log(`   - push: ${repo.permissions?.push || false}`);
-              console.log(`   - pull: ${repo.permissions?.pull || false}`);
-              
-              // 尝试列出 PR（测试 pull_requests 权限）
-              try {
-                const { data: pulls } = await github.rest.pulls.list({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  state: 'open',
-                  per_page: 1
-                });
-                console.log(`✅ Pull Requests READ permission: OK (found ${pulls.length} open PR)`);
-              } catch (error) {
-                console.log(`❌ Pull Requests READ permission: FAILED`);
-                console.log(`   Error: ${error.message}`);
+              if (claudeOutput.length > maxLength) {
+                truncatedOutput = claudeOutput.substring(0, maxLength);
+                wasTruncated = true;
               }
               
-              // 检查响应头中的权限信息
-              const testResponse = await github.request('GET /repos/{owner}/{repo}', {
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              });
+              const statusIcon = exitCode === '0' ? '✅' : '❌';
+              const statusText = exitCode === '0' ? '执行成功' : '执行失败';
               
-              if (testResponse.headers['x-accepted-github-permissions']) {
-                console.log(`📋 GitHub accepted permissions: ${testResponse.headers['x-accepted-github-permissions']}`);
+              body = `## 🤖 Claude Code 执行结果\n\n` +
+                    `**状态**: ${statusIcon} ${statusText} (退出码: ${exitCode})\n` +
+                    `**时间**: ${timestamp}\n\n` +
+                    `\`\`\`\n${truncatedOutput}\n\`\`\`\n`;
+              
+              if (wasTruncated) {
+                body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
               }
-              
-              console.log('\n✅ Token validation completed');
-              
             } catch (error) {
-              console.log(`❌ Token validation failed: ${error.message}`);
-              console.log(`   Status: ${error.status}`);
-              if (error.response?.headers) {
-                console.log(`   Accepted permissions: ${error.response.headers['x-accepted-github-permissions']}`);
-              }
-              throw error;
-            }
-
-      # ==========================================
-      # 步骤 13: 创建 Pull Request
-      # ==========================================
-      - name: Create Pull Request
-        if: steps.check-changes.outputs.has_changes == 'true' && steps.run-claude.outputs.exit_code == '0'
-        id: create-pr
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const branchName = `issue_${{ inputs.issue_number }}`;
-            const issueNumber = ${{ inputs.issue_number }};
-            const prompt = `${{ inputs.prompt }}`;
-
-            // 检查是否已存在 PR
-            const { data: existingPRs } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              head: `${context.repo.owner}:${branchName}`,
-              state: 'open'
-            });
-
-            let prUrl;
-            const timestamp = new Date().toISOString();
-
-            if (existingPRs.length > 0) {
-              // PR 已存在，更新 PR 描述
-              const pr = existingPRs[0];
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                body: 'Closes #' + issueNumber + '\n\n' +
-                      '## 🤖 由 Claude Code 自动生成\n\n' +
-                      '**最新请求**: ' + prompt + '\n' +
-                      '**更新时间**: ' + timestamp + '\n\n' +
-                      '### 📋 变更说明\n\n' +
-                      'Claude Code 已根据 Issue #' + issueNumber + ' 的需求自动生成代码变更。\n' +
-                      '此 PR 已被多次更新，请查看最新的变更内容。\n\n' +
-                      '### ✅ 审查清单\n\n' +
-                      '- [ ] 代码功能正确\n' +
-                      '- [ ] 测试通过（如有）\n' +
-                      '- [ ] 代码风格符合规范\n' +
-                      '- [ ] 文档已更新（如需要）\n\n' +
-                      '---\n\n' +
-                      '🤖 Generated with [Claude Code](https://claude.com/claude-code)'
-              });
-
-              prUrl = pr.html_url;
-              console.log(`✅ PR already exists and updated: ${prUrl}`);
-            } else {
-              // 创建新 PR
-              const { data: pr } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: 'feat: AI-generated solution for #' + issueNumber,
-                head: branchName,
-                base: 'main',
-                body: 'Closes #' + issueNumber + '\n\n' +
-                      '## 🤖 由 Claude Code 自动生成\n\n' +
-                      '**原始请求**: ' + prompt + '\n' +
-                      '**创建时间**: ' + timestamp + '\n\n' +
-                      '### 📋 变更说明\n\n' +
-                      'Claude Code 已根据 Issue #' + issueNumber + ' 的需求自动生成以下代码变更。\n\n' +
-                      '### ✅ 审查清单\n\n' +
-                      '- [ ] 代码功能正确\n' +
-                      '- [ ] 测试通过（如有）\n' +
-                      '- [ ] 代码风格符合规范\n' +
-                      '- [ ] 文档已更新（如需要）\n\n' +
-                      '---\n\n' +
-                      '🤖 Generated with [Claude Code](https://claude.com/claude-code)'
-              });
-
-              prUrl = pr.html_url;
-              console.log(`✅ Created new PR: ${prUrl}`);
-            }
-
-            core.setOutput('pr_url', prUrl);
-            return prUrl;
-
-      # ==========================================
-      # 步骤 14: 更新成功评论（包含 Claude 输出）
-      # ==========================================
-      - name: Update comment on success
-        if: success() && steps.create-pr.outputs.pr_url
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const commentId = ${{ inputs.comment_id }};
-            const prUrl = '${{ steps.create-pr.outputs.pr_url }}';
-            const prompt = `${{ inputs.prompt }}`;
-            const hasOutput = '${{ steps.read-output.outputs.has_output }}' === 'true';
-            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
-            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
-            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            let body = '✅ **任务完成!**\n\n' +
-                      '📋 **原始请求**: ' + prompt + '\n' +
-                      '🔗 **Pull Request**: ' + prUrl + '\n\n' +
-                      '请查看 PR 并进行代码审查。\n\n';
-            
-            // 添加 Claude 输出
-            if (hasOutput && claudeOutputBase64) {
-              try {
-                const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
-                const maxLength = 30000; // 为其他内容预留空间
-                let truncatedOutput = claudeOutput;
-                let wasTruncated = false;
-                
-                if (claudeOutput.length > maxLength) {
-                  truncatedOutput = claudeOutput.substring(0, maxLength);
-                  wasTruncated = true;
-                }
-                
-                body += '---\n\n## 🤖 Claude Code 执行结果\n\n' +
-                       `**状态**: ✅ 执行成功 (退出码: ${exitCode})\n` +
-                       `**时间**: ${timestamp}\n\n` +
-                       '### 📋 执行输出\n\n' +
-                       '```\n' + truncatedOutput + '\n```\n';
-                
-                if (wasTruncated) {
-                  body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
-                }
-              } catch (error) {
-                body += '---\n\n⚠️ 无法解析 Claude 输出日志\n';
-                console.error('解析 Claude 输出失败:', error);
-              }
+              body = '⚠️ 无法解析 Claude 输出日志\n';
+              console.error('解析 Claude 输出失败:', error);
             }
 
             await github.rest.issues.updateComment({
@@ -433,115 +281,3 @@ jobs:
               body: body
             });
 
-      # ==========================================
-      # 步骤 15: 更新失败评论（包含 Claude 输出）
-      # ==========================================
-      - name: Update comment on failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const commentId = ${{ inputs.comment_id }};
-            const prompt = `${{ inputs.prompt }}`;
-            const hasOutput = '${{ steps.read-output.outputs.has_output }}' === 'true';
-            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
-            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
-            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            let body = '❌ **任务失败**\n\n' +
-                      '📋 **原始请求**: ' + prompt + '\n' +
-                      '🔍 **查看详细日志**: [GitHub Actions 运行记录](' + runUrl + ')\n\n' +
-                      '请检查错误信息并重试。\n\n';
-            
-            // 添加 Claude 输出
-            if (hasOutput && claudeOutputBase64) {
-              try {
-                const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
-                const maxLength = 30000; // 为其他内容预留空间
-                let truncatedOutput = claudeOutput;
-                let wasTruncated = false;
-                
-                if (claudeOutput.length > maxLength) {
-                  truncatedOutput = claudeOutput.substring(0, maxLength);
-                  wasTruncated = true;
-                }
-                
-                body += '---\n\n## 🤖 Claude Code 执行结果\n\n' +
-                       `**状态**: ❌ 执行失败 (退出码: ${exitCode})\n` +
-                       `**时间**: ${timestamp}\n\n` +
-                       '### 📋 执行输出\n\n' +
-                       '```\n' + truncatedOutput + '\n```\n';
-                
-                if (wasTruncated) {
-                  body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
-                }
-              } catch (error) {
-                body += '---\n\n⚠️ 无法解析 Claude 输出日志\n';
-                console.error('解析 Claude 输出失败:', error);
-              }
-            }
-
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: commentId,
-              body: body
-            });
-
-      # ==========================================
-      # 步骤 16: 更新无变更评论（包含 Claude 输出）
-      # ==========================================
-      - name: Update comment on no changes
-        if: success() && steps.check-changes.outputs.has_changes == 'false'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const commentId = ${{ inputs.comment_id }};
-            const prompt = `${{ inputs.prompt }}`;
-            const hasOutput = '${{ steps.read-output.outputs.has_output }}' === 'true';
-            const claudeOutputBase64 = '${{ steps.read-output.outputs.claude_output_base64 }}';
-            const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
-            const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            let body = '⚠️ **任务完成,但未检测到代码变更**\n\n' +
-                      '📋 **原始请求**: ' + prompt + '\n\n' +
-                      'Claude Code 执行完成,但未生成任何代码变更。请检查任务是否需要代码修改。\n\n';
-            
-            // 添加 Claude 输出
-            if (hasOutput && claudeOutputBase64) {
-              try {
-                const claudeOutput = Buffer.from(claudeOutputBase64, 'base64').toString('utf8');
-                const maxLength = 30000; // 为其他内容预留空间
-                let truncatedOutput = claudeOutput;
-                let wasTruncated = false;
-                
-                if (claudeOutput.length > maxLength) {
-                  truncatedOutput = claudeOutput.substring(0, maxLength);
-                  wasTruncated = true;
-                }
-                
-                body += '---\n\n## 🤖 Claude Code 执行结果\n\n' +
-                       `**状态**: ⚠️ 执行完成 (退出码: ${exitCode})\n` +
-                       `**时间**: ${timestamp}\n\n` +
-                       '### 📋 执行输出\n\n' +
-                       '```\n' + truncatedOutput + '\n```\n';
-                
-                if (wasTruncated) {
-                  body += `\n⚠️ *输出内容过长，已截断。完整日志请查看 [Actions 运行记录](${runUrl})*\n`;
-                }
-              } catch (error) {
-                body += '---\n\n⚠️ 无法解析 Claude 输出日志\n';
-                console.error('解析 Claude 输出失败:', error);
-              }
-            }
-
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: commentId,
-              body: body
-            });
