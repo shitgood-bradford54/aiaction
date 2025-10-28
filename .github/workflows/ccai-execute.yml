@@ -142,7 +142,18 @@ jobs:
       # 步骤 5: 安装依赖
       # ==========================================
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          echo "📁 Current directory contents:"
+          ls -la
+          echo "🔍 Checking for pnpm-lock.yaml:"
+          if [ -f pnpm-lock.yaml ]; then
+            echo "✅ pnpm-lock.yaml found"
+            cat pnpm-lock.yaml | head -20
+          else
+            echo "❌ pnpm-lock.yaml not found"
+            echo "📋 Installing without frozen lockfile"
+            pnpm install
+          fi
 
       # ==========================================
       # 步骤 6: 创建环境配置文件
