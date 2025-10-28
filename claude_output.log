@@ -1,11 +1,13 @@
-Hi! I'm Claude Code, an AI assistant to help you with software engineering tasks in this NestJS + Prisma + Redis project.
+Hi! I'm Claude Code, ready to help you with software engineering tasks in this NestJS project.
 
-I can help you with:
-- Writing and modifying code
-- Database migrations and Prisma schema changes
-- Setting up and managing environment configurations
-- Running tests, builds, and other development tasks
-- Debugging issues and implementing new features
-- Using the project's `dx` CLI tool for various operations
+I can see you're working on a NestJS backend application with Prisma (PostgreSQL) and Redis. The project is currently on the `issue_5` branch with some modified files.
 
-What would you like to work on today?
+How can I help you today? I can assist with:
+- Building features or fixing bugs
+- Database migrations and schema changes
+- Testing and debugging
+- Code refactoring
+- Explaining code structure
+- Or anything else related to this codebase
+
+What would you like to work on?
