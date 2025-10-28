@@ -1,1 +1,12 @@
-API Error: 401 {"error":{"code":"","message":"无效的令牌 (request id: 20251028023059581582417LgfG941r)","type":"new_api_error"}} · Please run /login
+Hi! I'm Claude Code, ready to help you with this NestJS backend project. 
+
+I can see you're working on the `issue_5` branch. How can I assist you today? Whether it's:
+
+- Working on features or bug fixes
+- Database migrations or schema changes
+- Setting up your development environment
+- Running tests or debugging
+- Code refactoring or improvements
+- Or anything else related to the codebase
+
+Just let me know what you'd like to do!
