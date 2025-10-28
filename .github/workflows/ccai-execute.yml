@@ -171,10 +171,19 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const fs = require('fs');
             const issueNumber = ${{ inputs.issue_number }};
-            const claudeOutput = `${{ steps.run-claude.outputs.claude_output }}`;
             const exitCode = '${{ steps.run-claude.outputs.exit_code }}';
             const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            
+            // 读取 Claude 输出日志文件
+            let claudeOutput = '';
+            try {
+              claudeOutput = fs.readFileSync('claude_output.log', 'utf8');
+            } catch (error) {
+              claudeOutput = '⚠️ 无法读取 Claude 输出日志文件';
+              console.error('读取日志文件失败:', error);
+            }
             
             // 限制输出长度，避免评论过长
             const maxLength = 60000; // GitHub 评论限制约 65536 字符

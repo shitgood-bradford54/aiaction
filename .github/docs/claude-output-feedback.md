@@ -11,13 +11,11 @@
 修改了 `.github/scripts/ccai/run-claude.sh` 脚本：
 
 - **原来**：Claude 输出只写入 `claude_output.log` 文件
-- **现在**：除了写入日志文件外，还通过 GitHub Actions 的 output 机制传递给工作流
+- **现在**：仍然写入日志文件，工作流会直接读取该文件
 
 ```bash
-# 将完整的 Claude 输出传递给 GitHub Actions
-echo "claude_output<<EOF" >> $GITHUB_OUTPUT
-cat "$LOG_FILE" >> $GITHUB_OUTPUT
-echo "EOF" >> $GITHUB_OUTPUT
+# 执行 Claude Code (允许失败,以便捕获退出码)
+claude -p "$PROMPT" 2>&1 | tee "$LOG_FILE"
 ```
 
 ### 2. 工作流修改 (`ccai-execute.yml`)
@@ -25,12 +23,19 @@ echo "EOF" >> $GITHUB_OUTPUT
 在工作流中添加了新的步骤 **"步骤 8: 反馈 Claude 输出到 Issue"**：
 
 - 在 Claude 执行完成后立即运行（使用 `if: always()`）
+- 使用 Node.js `fs` 模块直接读取 `claude_output.log` 文件
 - 将 Claude 的完整输出作为评论发布到 Issue 中
 - 包含以下信息：
   - 执行状态（成功/失败）
   - 退出码
   - 执行时间
   - 完整的输出内容
+
+```javascript
+// 直接读取日志文件，避免 YAML 模板字符串转义问题
+const fs = require('fs');
+claudeOutput = fs.readFileSync('claude_output.log', 'utf8');
+```
 
 ### 3. 输出限制
 
