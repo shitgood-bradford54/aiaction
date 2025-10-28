@@ -139,6 +139,21 @@ jobs:
           node-version: '20'
 
       # ==========================================
+      # 步骤 4.5: 关闭 pnpm 缓存（调试阶段）
+      # ==========================================
+      - name: Disable pnpm cache (debug)
+        run: |
+          echo "🧹 Clearing pnpm store and caches"
+          if command -v pnpm >/dev/null 2>&1; then
+            STORE_PATH=$(pnpm store path || echo "")
+            echo "pnpm store path: ${STORE_PATH}"
+            if [ -n "$STORE_PATH" ] && [ -d "$STORE_PATH" ]; then
+              rm -rf "$STORE_PATH"
+            fi
+          fi
+          rm -rf node_modules ~/.cache/pnpm ~/.pnpm-store
+
+      # ==========================================
       # 步骤 5: 安装依赖
       # ==========================================
       - name: Install dependencies
