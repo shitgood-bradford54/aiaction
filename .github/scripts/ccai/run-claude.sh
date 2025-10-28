@@ -44,6 +44,11 @@ fi
 echo "exit_code=$CLAUDE_EXIT_CODE" >> $GITHUB_OUTPUT
 echo "interaction_detected=$INTERACTION_DETECTED" >> $GITHUB_OUTPUT
 
+# 将完整的 Claude 输出传递给 GitHub Actions (用于反馈到 Issue)
+echo "claude_output<<EOF" >> $GITHUB_OUTPUT
+cat "$LOG_FILE" >> $GITHUB_OUTPUT
+echo "EOF" >> $GITHUB_OUTPUT
+
 if [ "$INTERACTION_DETECTED" = true ]; then
   # 使用 multiline output
   echo "interaction_message<<EOF" >> $GITHUB_OUTPUT
